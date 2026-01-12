@@ -4,6 +4,7 @@
   },
   "dependencies": {
     "ali-oss": "^6.23.0",
-    "axios": "^1.13.2"
+    "axios": "^1.13.2",
+    "mysql2": "^3.16.0"
   }
 }

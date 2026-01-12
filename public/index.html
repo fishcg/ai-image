@@ -9,11 +9,82 @@
   <body>
     <main class="container">
       <header class="header">
-        <h1>AI 图片生成</h1>
-        <p class="subtitle">选择本地图片 → 上传到 OSS → 调用 DashScope 生成结果</p>
+        <div class="topbar">
+          <div>
+            <h1>AI 图片生成</h1>
+          </div>
+          <div class="authTop">
+            <div class="authMeta">
+              <div id="me" class="me">未登录</div>
+              <div id="quota" class="quota"></div>
+            </div>
+            <div class="authBtns">
+              <button id="openLogin" class="secondary" type="button">登录</button>
+              <button id="openRegister" class="secondary" type="button">注册</button>
+              <button id="logout" class="secondary" type="button" style="display:none">退出</button>
+            </div>
+          </div>
+        </div>
       </header>
 
-      <section class="card">
+      <div id="loginModal" class="modal" hidden>
+        <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+          <div class="modalHeader">
+            <div id="loginTitle" class="modalTitle">登录</div>
+            <button class="iconBtn" type="button" data-close-modal="loginModal" aria-label="关闭">×</button>
+          </div>
+          <div class="modalBody">
+            <div class="row grid2">
+              <div>
+                <label class="label" for="loginUsername">用户名</label>
+                <input id="loginUsername" type="text" autocomplete="username" placeholder="a-z0-9._-" />
+              </div>
+              <div>
+                <label class="label" for="loginPassword">密码</label>
+                <input id="loginPassword" type="password" autocomplete="current-password" placeholder="至少 6 位" />
+              </div>
+            </div>
+            <div id="loginError" class="formError" hidden></div>
+          </div>
+          <div class="modalFooter">
+            <button class="secondary" type="button" data-close-modal="loginModal">取消</button>
+            <button id="doLogin" class="primary" type="button">登录</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="registerModal" class="modal" hidden>
+        <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="registerTitle">
+          <div class="modalHeader">
+            <div id="registerTitle" class="modalTitle">注册</div>
+            <button class="iconBtn" type="button" data-close-modal="registerModal" aria-label="关闭">×</button>
+          </div>
+          <div class="modalBody">
+            <div class="row grid2">
+              <div>
+                <label class="label" for="registerUsername">用户名</label>
+                <input id="registerUsername" type="text" autocomplete="username" placeholder="a-z0-9._-" />
+              </div>
+              <div>
+                <label class="label" for="registerPassword">密码</label>
+                <input id="registerPassword" type="password" autocomplete="new-password" placeholder="至少 6 位" />
+              </div>
+            </div>
+            <div class="row">
+              <label class="label" for="inviteCode">注册码</label>
+              <input id="inviteCode" type="text" autocomplete="off" placeholder="请输入注册码" />
+              <div class="hint">注册需要有效的注册码。</div>
+            </div>
+            <div id="registerError" class="formError" hidden></div>
+          </div>
+          <div class="modalFooter">
+            <button class="secondary" type="button" data-close-modal="registerModal">取消</button>
+            <button id="doRegister" class="primary" type="button">注册</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="card" data-auth="required">
         <div class="row">
           <label class="label" for="images">选择图片</label>
           <input id="images" type="file" accept="image/*" multiple />
@@ -23,7 +94,7 @@
         <div id="preview" class="preview"></div>
       </section>
 
-      <section class="card">
+      <section class="card" data-auth="required">
         <div class="row">
           <div>
             <label class="label" for="n">生成数量（1–6）</label>
@@ -58,6 +129,17 @@
             <button class="chip" type="button" data-prompt="漫画网点">漫画网点</button>
             <button class="chip" type="button" data-prompt="速度线">速度线</button>
           </div>
+          <div class="faceControls">
+            <label class="check">
+              <input id="faceRedraw" type="checkbox" />
+              <span>面部重绘</span>
+            </label>
+            <div class="strength">
+              <span class="muted">重绘程度</span>
+              <input id="faceStrength" type="range" min="1" max="5" value="3" />
+              <span id="faceStrengthValue" class="badge">3</span>
+            </div>
+          </div>
           <div class="hint">点击上方按钮会自动追加预设 prompt 片段。</div>
         </div>
 
@@ -68,7 +150,7 @@
         </div>
       </section>
 
-      <section class="card">
+      <section class="card" data-auth="required">
         <h2 class="h2">输出结果</h2>
         <div id="results" class="results"></div>
       </section>

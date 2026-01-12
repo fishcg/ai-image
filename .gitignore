@@ -5,9 +5,5 @@ node_modules/
 # local secrets / runtime config
 config.js
 
-# generated outputs
-result/
-images/
-
 # logs
 *.log

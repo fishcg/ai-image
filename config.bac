@@ -29,4 +29,16 @@ const aliyun = {
   },
 };
 
-module.exports = { http, dc, ai, aliyun };
+const mysql = {
+  host: process.env.MYSQL_HOST || '127.0.0.1',
+  port: Number(process.env.MYSQL_PORT || 3306),
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASSWORD || 'YOUR_MYSQL_PASSWORD',
+  database: process.env.MYSQL_DATABASE || 'ai_image',
+};
+
+const auth = {
+  registrationCode: process.env.REGISTRATION_CODE || 'CHANGE_ME_REGISTRATION_CODE',
+};
+
+module.exports = { http, dc, ai, aliyun, mysql, auth };
