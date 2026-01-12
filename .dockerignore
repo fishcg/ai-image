@@ -1,0 +1,7 @@
+.git
+.idea
+node_modules
+config.js
+*.log
+.DS_Store
+
