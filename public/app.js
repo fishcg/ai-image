@@ -131,6 +131,18 @@ function setFormError(id, message) {
   el.hidden = !text;
 }
 
+function openImageViewer({ src, title }) {
+  const img = $('imageModalImg');
+  const a = $('imageModalOpen');
+  if (!img || !a) return;
+  img.src = src;
+  img.alt = title || 'preview';
+  a.href = src;
+  const t = $('imageTitle');
+  if (t) t.textContent = title || '预览';
+  openModal('imageModal');
+}
+
 function setAuthUi({ user, quota }) {
   currentUser = user || null;
   currentQuota = quota || null;
@@ -156,6 +168,7 @@ function setAuthUi({ user, quota }) {
     submitBtn.disabled = true;
     $('preview').innerHTML = '';
     $('results').innerHTML = '';
+    updateFileInfo([]);
     return;
   }
 
@@ -271,6 +284,7 @@ function renderPreview(files) {
     const img = document.createElement('img');
     img.alt = file.name;
     img.src = URL.createObjectURL(file);
+    img.dataset.fullSrc = img.src;
 
     const name = document.createElement('div');
     name.className = 'name';
@@ -303,6 +317,7 @@ function renderResults(urls) {
     const img = document.createElement('img');
     img.src = url;
     img.alt = 'output';
+    img.dataset.fullSrc = url;
 
     const meta = document.createElement('div');
     meta.className = 'meta';
@@ -327,6 +342,20 @@ function fileToDataUrl(file) {
     reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsDataURL(file);
   });
+}
+
+function updateFileInfo(files) {
+  const el = $('fileInfo');
+  if (!el) return;
+  if (!files || files.length === 0) {
+    el.textContent = '未选择';
+    return;
+  }
+  if (files.length === 1) {
+    el.textContent = `已选择：${files[0].name}`;
+    return;
+  }
+  el.textContent = `已选择 ${files.length} 张：${files.map((f) => f.name).join('、')}`;
 }
 
 async function handleSubmit() {
@@ -370,11 +399,12 @@ async function handleSubmit() {
     const orderedImages = images.length >= 2 ? moveIndexToEnd(images, baseIndex) : images;
     const orderHint = buildOrderHint(files, baseIndex);
     const finalPrompt = orderHint ? `${orderHint}\n\n${prompt}` : prompt;
+    const hd = Boolean($('hd')?.checked);
 
     const resp = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images: orderedImages, prompt: finalPrompt, n }),
+      body: JSON.stringify({ images: orderedImages, prompt: finalPrompt, n, hd }),
     });
 
     const data = await resp.json().catch(() => ({}));
@@ -401,6 +431,7 @@ function handleClear() {
   $('n').value = '2';
   $('preview').innerHTML = '';
   selectedFiles = [];
+  updateFileInfo([]);
   $('baseIndexWrap').hidden = true;
   $('results').innerHTML = '';
   setStatus('');
@@ -447,7 +478,22 @@ function init() {
     selectedFiles = Array.from($('images').files || []).slice(0, 3);
     syncBaseIndexOptions(selectedFiles.length);
     renderPreview(selectedFiles);
+    updateFileInfo(selectedFiles);
     setStatus('');
+  });
+
+  $('preview')?.addEventListener('click', (e) => {
+    const img = e.target?.closest?.('img');
+    if (!img) return;
+    const src = img.dataset.fullSrc || img.src;
+    openImageViewer({ src, title: img.alt || '预览' });
+  });
+
+  $('results')?.addEventListener('click', (e) => {
+    const img = e.target?.closest?.('img');
+    if (!img) return;
+    const src = img.dataset.fullSrc || img.src;
+    openImageViewer({ src, title: '输出预览' });
   });
 
   $('submit').addEventListener('click', handleSubmit);

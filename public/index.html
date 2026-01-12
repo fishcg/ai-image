@@ -84,10 +84,30 @@
         </div>
       </div>
 
+      <div id="imageModal" class="modal" hidden>
+        <div class="modalCard imageModalCard" role="dialog" aria-modal="true" aria-labelledby="imageTitle">
+          <div class="modalHeader">
+            <div id="imageTitle" class="modalTitle">预览</div>
+            <button class="iconBtn" type="button" data-close-modal="imageModal" aria-label="关闭">×</button>
+          </div>
+          <div class="modalBody imageViewer">
+            <img id="imageModalImg" alt="preview" />
+          </div>
+          <div class="modalFooter">
+            <a id="imageModalOpen" class="secondary" href="#" target="_blank" rel="noreferrer">打开原图</a>
+            <button class="secondary" type="button" data-close-modal="imageModal">关闭</button>
+          </div>
+        </div>
+      </div>
+
       <section class="card" data-auth="required">
         <div class="row">
-          <label class="label" for="images">选择图片</label>
-          <input id="images" type="file" accept="image/*" multiple />
+          <label class="label">选择图片</label>
+          <div class="filePicker">
+            <input id="images" class="fileInput" type="file" accept="image/*" multiple />
+            <label class="fileBtn" for="images">选择图片</label>
+            <div id="fileInfo" class="fileInfo">未选择</div>
+          </div>
           <div class="hint">可同时选择多张（最多 3 张）。</div>
         </div>
 
@@ -190,6 +210,14 @@
             </div>
           </div>
           <div class="hint">点击上方按钮会自动追加预设 prompt 片段。</div>
+        </div>
+
+        <div class="row">
+          <label class="check">
+            <input id="hd" type="checkbox" />
+            <span>超清</span>
+          </label>
+          <div class="hint">勾选后会按输入图片比例，将输出尺寸最长边提升到 2048px。</div>
         </div>
 
         <div class="row actions">

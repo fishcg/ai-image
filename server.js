@@ -230,16 +230,28 @@ function roundDownToMultiple(n, multiple) {
   return Math.max(m, Math.floor(n / m) * m);
 }
 
-function buildDashScopeSize(dim, { maxSide = 2048, multiple = 64 } = {}) {
+function buildDashScopeSize(dim, { maxSide = 2048, multiple = 64, forceMaxSide = false } = {}) {
   if (!dim?.width || !dim?.height) return null;
   const w0 = Number(dim.width);
   const h0 = Number(dim.height);
   if (!Number.isFinite(w0) || !Number.isFinite(h0) || w0 <= 0 || h0 <= 0) return null;
 
-  const max0 = Math.max(w0, h0);
-  const scale = max0 > maxSide ? maxSide / max0 : 1;
-  let w = Math.max(1, Math.round(w0 * scale));
-  let h = Math.max(1, Math.round(h0 * scale));
+  let w;
+  let h;
+  if (forceMaxSide) {
+    if (w0 >= h0) {
+      w = maxSide;
+      h = Math.max(1, Math.round((maxSide * h0) / w0));
+    } else {
+      h = maxSide;
+      w = Math.max(1, Math.round((maxSide * w0) / h0));
+    }
+  } else {
+    const max0 = Math.max(w0, h0);
+    const scale = max0 > maxSide ? maxSide / max0 : 1;
+    w = Math.max(1, Math.round(w0 * scale));
+    h = Math.max(1, Math.round(h0 * scale));
+  }
 
   w = roundDownToMultiple(clampInt(w, 64, maxSide), multiple);
   h = roundDownToMultiple(clampInt(h, 64, maxSide), multiple);
@@ -429,6 +441,7 @@ async function handleGenerate(req, res) {
   const nRaw = Number(parsed?.n);
   const n = Number.isFinite(nRaw) ? Math.max(1, Math.min(6, Math.floor(nRaw))) : 2;
   const images = Array.isArray(parsed?.images) ? parsed.images : [];
+  const hd = Boolean(parsed?.hd);
 
   if (!prompt) {
     sendJson(res, 400, { error: 'Prompt is required' });
@@ -480,7 +493,9 @@ async function handleGenerate(req, res) {
   }
 
   const baseDim = inputDims.length ? inputDims[inputDims.length - 1] : null;
-  const size = buildDashScopeSize(baseDim, { maxSide: 2048, multiple: 64 });
+  const size = baseDim
+    ? buildDashScopeSize(baseDim, { maxSide: 2048, multiple: 64, forceMaxSide: hd })
+    : (hd ? '2048*2048' : null);
 
   const payload = {
     model,
