@@ -91,3 +91,7 @@ npm start
 ## 安全提示
 
 - `config.js` 包含密钥/账号信息，已在 `.gitignore` 中忽略，请勿提交。
+
+## 版权与许可
+
+本项目采用 MIT License，可商用。详见 `LICENSE`。
