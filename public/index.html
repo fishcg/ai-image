@@ -112,64 +112,81 @@
         <div class="row">
           <label class="label" for="prompt">Prompt</label>
           <textarea id="prompt" rows="5" placeholder="描述你希望生成的效果…"></textarea>
-          <div class="chips">
-            <button class="chip" type="button" data-prompt="粒子效果">粒子效果</button>
-            <button class="chip" type="button" data-prompt="头发飘逸">头发飘逸</button>
-            <button class="chip" type="button" data-prompt="闪电效果">闪电效果</button>
-            <button class="chip" type="button" data-prompt="烟雾效果">烟雾效果</button>
-            <button class="chip" type="button" data-prompt="武器发光">武器发光</button>
-            <button class="chip" type="button" data-prompt="火焰特效">火焰特效</button>
-            <button class="chip" type="button" data-prompt="能量光环">能量光环</button>
-            <button class="chip" type="button" data-prompt="霓虹光效">霓虹光效</button>
-            <button class="chip" type="button" data-prompt="电影调色">电影调色</button>
-            <button class="chip" type="button" data-prompt="背景虚化">背景虚化</button>
-            <button class="chip" type="button" data-prompt="锐化细节">锐化细节</button>
-            <button class="chip" type="button" data-prompt="去噪">去噪</button>
-            <button class="chip" type="button" data-prompt="二次元柔光">二次元柔光</button>
-            <button class="chip" type="button" data-prompt="大眼高光">大眼高光</button>
-            <button class="chip" type="button" data-prompt="漫画线稿">漫画线稿</button>
-            <button class="chip" type="button" data-prompt="赛璐璐光影">赛璐璐光影</button>
-            <button class="chip" type="button" data-prompt="舞台灯光">舞台灯光</button>
-            <button class="chip" type="button" data-prompt="樱花氛围">樱花氛围</button>
-            <button class="chip" type="button" data-prompt="星光闪粉">星光闪粉</button>
-            <button class="chip" type="button" data-prompt="日系清透">日系清透</button>
-            <button class="chip" type="button" data-prompt="漫画网点">漫画网点</button>
-            <button class="chip" type="button" data-prompt="速度线">速度线</button>
-            <button class="chip" type="button" data-prompt="光斑漏光">光斑漏光</button>
-            <button class="chip" type="button" data-prompt="雨天氛围">雨天氛围</button>
-            <button class="chip" type="button" data-prompt="雪花效果">雪花效果</button>
-            <button class="chip" type="button" data-prompt="尘埃粒子">尘埃粒子</button>
-            <button class="chip" type="button" data-prompt="体积光">体积光</button>
-            <button class="chip" type="button" data-prompt="逆光轮廓光">逆光轮廓光</button>
-            <button class="chip" type="button" data-prompt="肤色校正">肤色校正</button>
-            <button class="chip" type="button" data-prompt="美白牙齿">美白牙齿</button>
-            <button class="chip" type="button" data-prompt="眼神增强">眼神增强</button>
-            <button class="chip" type="button" data-prompt="HDR 质感">HDR 质感</button>
-            <button class="chip" type="button" data-prompt="暗角">暗角</button>
-            <button class="chip" type="button" data-prompt="胶片颗粒">胶片颗粒</button>
-            <button class="chip" type="button" data-prompt="色温调整-暖">色温调整-暖</button>
-            <button class="chip" type="button" data-prompt="色温调整-冷">色温调整-冷</button>
-            <button class="chip" type="button" data-prompt="去路人">去路人</button>
-            <button class="chip" type="button" data-prompt="背景简化">背景简化</button>
-            <button class="chip" type="button" data-prompt="漫展补光">漫展补光</button>
-            <button class="chip" type="button" data-prompt="去反光">去反光</button>
-            <button class="chip" type="button" data-prompt="去油光">去油光</button>
-            <button class="chip" type="button" data-prompt="服装质感">服装质感</button>
-            <button class="chip" type="button" data-prompt="假发发丝修复">假发发丝修复</button>
-            <button class="chip" type="button" data-prompt="妆容增强">妆容增强</button>
-            <button class="chip" type="button" data-prompt="舞台光晕">舞台光晕</button>
-            <button class="chip" type="button" data-prompt="彩灯散景">彩灯散景</button>
-            <button class="chip" type="button" data-prompt="降摩尔纹">降摩尔纹</button>
-          </div>
-          <div class="faceControls">
-            <label class="check">
-              <input id="faceRedraw" type="checkbox" />
-              <span>面部重绘</span>
-            </label>
-            <div class="strength">
-              <span class="muted">重绘程度</span>
-              <input id="faceStrength" type="range" min="1" max="5" value="3" />
-              <span id="faceStrengthValue" class="badge">3</span>
+          <div class="effectGroups">
+            <div class="effectGroup">
+              <div class="effectTitle">影调调整</div>
+              <div class="chips">
+                <button class="chip" type="button" data-prompt="电影调色">电影调色</button>
+                <button class="chip" type="button" data-prompt="日系清透">日系清透</button>
+                <button class="chip" type="button" data-prompt="HDR 质感">HDR 质感</button>
+                <button class="chip" type="button" data-prompt="暗角">暗角</button>
+                <button class="chip" type="button" data-prompt="胶片颗粒">胶片颗粒</button>
+                <button class="chip" type="button" data-prompt="色温调整-暖">色温调整-暖</button>
+                <button class="chip" type="button" data-prompt="色温调整-冷">色温调整-冷</button>
+                <button class="chip" type="button" data-prompt="去噪">去噪</button>
+                <button class="chip" type="button" data-prompt="锐化细节">锐化细节</button>
+                <button class="chip" type="button" data-prompt="背景虚化">背景虚化</button>
+              </div>
+            </div>
+
+            <div class="effectGroup">
+              <div class="effectTitle">面容调整</div>
+              <div class="chips">
+                <button class="chip" type="button" data-prompt="肤色校正">肤色校正</button>
+                <button class="chip" type="button" data-prompt="去油光">去油光</button>
+                <button class="chip" type="button" data-prompt="美白牙齿">美白牙齿</button>
+                <button class="chip" type="button" data-prompt="眼神增强">眼神增强</button>
+                <button class="chip" type="button" data-prompt="大眼高光">大眼高光</button>
+                <button class="chip" type="button" data-prompt="妆容增强">妆容增强</button>
+                <button class="chip" type="button" data-prompt="二次元柔光">二次元柔光</button>
+                <button class="chip" type="button" data-prompt="头发飘逸">头发飘逸</button>
+              </div>
+              <div class="faceControls">
+                <label class="check">
+                  <input id="faceRedraw" type="checkbox" />
+                  <span>面部重绘</span>
+                </label>
+                <div class="strength">
+                  <span class="muted">重绘程度</span>
+                  <input id="faceStrength" type="range" min="1" max="5" value="3" />
+                  <span id="faceStrengthValue" class="badge">3</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="effectGroup">
+              <div class="effectTitle">环境调整</div>
+              <div class="chips">
+                <button class="chip" type="button" data-prompt="闪电效果">闪电效果</button>
+                <button class="chip" type="button" data-prompt="武器发光">武器发光</button>
+                <button class="chip" type="button" data-prompt="火焰特效">火焰特效</button>
+                <button class="chip" type="button" data-prompt="能量光环">能量光环</button>
+                <button class="chip" type="button" data-prompt="霓虹光效">霓虹光效</button>
+                <button class="chip" type="button" data-prompt="粒子效果">粒子效果</button>
+                <button class="chip" type="button" data-prompt="烟雾效果">烟雾效果</button>
+                <button class="chip" type="button" data-prompt="体积光">体积光</button>
+                <button class="chip" type="button" data-prompt="逆光轮廓光">逆光轮廓光</button>
+                <button class="chip" type="button" data-prompt="光斑漏光">光斑漏光</button>
+                <button class="chip" type="button" data-prompt="雨天氛围">雨天氛围</button>
+                <button class="chip" type="button" data-prompt="雪花效果">雪花效果</button>
+                <button class="chip" type="button" data-prompt="尘埃粒子">尘埃粒子</button>
+                <button class="chip" type="button" data-prompt="舞台灯光">舞台灯光</button>
+                <button class="chip" type="button" data-prompt="舞台光晕">舞台光晕</button>
+                <button class="chip" type="button" data-prompt="彩灯散景">彩灯散景</button>
+                <button class="chip" type="button" data-prompt="樱花氛围">樱花氛围</button>
+                <button class="chip" type="button" data-prompt="星光闪粉">星光闪粉</button>
+                <button class="chip" type="button" data-prompt="速度线">速度线</button>
+                <button class="chip" type="button" data-prompt="去路人">去路人</button>
+                <button class="chip" type="button" data-prompt="背景简化">背景简化</button>
+                <button class="chip" type="button" data-prompt="漫展补光">漫展补光</button>
+                <button class="chip" type="button" data-prompt="去反光">去反光</button>
+                <button class="chip" type="button" data-prompt="服装质感">服装质感</button>
+                <button class="chip" type="button" data-prompt="假发发丝修复">假发发丝修复</button>
+                <button class="chip" type="button" data-prompt="降摩尔纹">降摩尔纹</button>
+                <button class="chip" type="button" data-prompt="漫画线稿">漫画线稿</button>
+                <button class="chip" type="button" data-prompt="赛璐璐光影">赛璐璐光影</button>
+                <button class="chip" type="button" data-prompt="漫画网点">漫画网点</button>
+              </div>
             </div>
           </div>
           <div class="hint">点击上方按钮会自动追加预设 prompt 片段。</div>

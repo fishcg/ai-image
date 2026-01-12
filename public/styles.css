@@ -182,6 +182,30 @@ textarea { resize: vertical; min-height: 110px; }
 }
 .chip:hover { border-color: rgba(255,255,255,0.22); }
 
+.effectGroups { display: grid; gap: 14px; margin-top: 12px; }
+.effectGroup {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(0,0,0,0.12);
+}
+.effectTitle {
+  font-weight: 700;
+  font-size: 13px;
+  color: rgba(255,255,255,0.88);
+  margin-bottom: 8px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.effectTitle::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: rgba(255,255,255,0.08);
+}
+.effectGroup .chips { margin-top: 0; }
+
 .faceControls {
   display: flex;
   gap: 12px;
