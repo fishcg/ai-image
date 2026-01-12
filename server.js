@@ -372,6 +372,7 @@ async function handleGenerate(req, res) {
       watermark: false,
       negative_prompt: '低质量',
       prompt_extend: true,
+      size: "2048*2048"
     },
   };
 

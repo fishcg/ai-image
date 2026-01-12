@@ -414,6 +414,17 @@ function appendPreset(key) {
   const next = current ? `${current}\n${snippet}` : snippet;
   el.value = next;
   el.focus();
+  try {
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.scrollTop = el.scrollHeight;
+  } catch {}
+  if (!$('submit')?.classList.contains('loading')) {
+    const msg = `已追加：${key}`;
+    setStatus(msg);
+    setTimeout(() => {
+      if ($('status')?.textContent === msg) setStatus('');
+    }, 1200);
+  }
 }
 
 function init() {
