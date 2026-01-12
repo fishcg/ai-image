@@ -1,0 +1,32 @@
+// 配置示例文件（请复制为 config.js 并填写真实配置；不要提交 config.js）
+const http = {
+  port: 7993,
+  enableCORS: true,
+};
+
+const dc = {
+  ossFilePath: 'test/log',
+};
+
+const ai = {
+  URL:
+    process.env.DASHSCOPE_URL ||
+    'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+  API_KEY: process.env.DASHSCOPE_API_KEY || 'YOUR_DASHSCOPE_API_KEY',
+  MODEL: process.env.DASHSCOPE_MODEL || 'qwen-image-edit-plus',
+  TIMEOUT: Number(process.env.DASHSCOPE_TIMEOUT || 120000), // 超时时间，单位 ms
+};
+
+const aliyun = {
+  oss: {
+    region: 'oss-cn-hangzhou',
+    internal: false,
+    secure: false,
+    bucket: 'YOUR_OSS_BUCKET',
+    timeout: 300000,
+    accessKeyId: 'YOUR_ACCESS_KEY_ID',
+    accessKeySecret: 'YOUR_ACCESS_KEY_SECRET',
+  },
+};
+
+module.exports = { http, dc, ai, aliyun };

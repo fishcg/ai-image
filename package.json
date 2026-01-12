@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ali-oss": "^6.23.0",
+    "axios": "^1.13.2"
+  }
+}
