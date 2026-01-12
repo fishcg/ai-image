@@ -8,7 +8,7 @@ const presets = {
   '烟雾效果':
     '增加层次丰富的烟雾/雾气（smoke/fog），半透明体积感，边缘柔和不过度遮挡主体，氛围更强但主体清晰。',
   '武器发光':
-    '让武器发出高亮能量光（glow/emissive），发光边缘干净，带轻微光晕与溢光，保持材质细节与轮廓不变。',
+    '让人物的武器（非人物本身）附带对应的光效，发光边缘干净，带轻微光晕与溢光，保持武器材质细节与轮廓不变。',
   '火焰特效':
     '添加真实火焰特效（flame），火光照亮周围，颜色自然（橙黄/蓝焰可选），火焰与主体接触处细节丰富。',
   '能量光环':
@@ -51,6 +51,7 @@ function $(id) {
 
 let currentUser = null;
 let currentQuota = null;
+let selectedFiles = [];
 
 function setStatus(text, type = 'info') {
   const el = $('status');
@@ -206,9 +207,16 @@ function renderPreview(files) {
   preview.innerHTML = '';
   if (!files || files.length === 0) return;
 
-  for (const file of files) {
+  const baseIdx = clampInt($('baseIndex')?.value, 1, 3, 1) - 1;
+
+  for (const [idx, file] of files.entries()) {
     const div = document.createElement('div');
     div.className = 'thumb';
+    if (idx === baseIdx && files.length >= 2) div.classList.add('base');
+
+    const order = document.createElement('div');
+    order.className = 'order';
+    order.textContent = String(idx + 1);
 
     const img = document.createElement('img');
     img.alt = file.name;
@@ -216,8 +224,9 @@ function renderPreview(files) {
 
     const name = document.createElement('div');
     name.className = 'name';
-    name.textContent = file.name;
+    name.textContent = `${idx + 1}. ${file.name}`;
 
+    div.appendChild(order);
     div.appendChild(img);
     div.appendChild(name);
     preview.appendChild(div);
@@ -225,6 +234,10 @@ function renderPreview(files) {
 }
 
 function renderResults(urls) {
+  if (urls === null) {
+    $('results').innerHTML = '<div class="hint">生成中...</div>';
+    return;
+  }
   const results = $('results');
   results.innerHTML = '';
 
@@ -267,13 +280,13 @@ function fileToDataUrl(file) {
 }
 
 async function handleSubmit() {
-  const files = Array.from($('images').files || []);
+  const files = selectedFiles.length ? selectedFiles : Array.from($('images').files || []);
   if (files.length === 0) {
     setStatus('请先选择图片。', 'error');
     return;
   }
-  if (files.length > 6) {
-    setStatus('输入图片最多 6 张。', 'error');
+  if (files.length > 3) {
+    setStatus('输入图片最多 3 张。', 'error');
     return;
   }
 
@@ -291,9 +304,10 @@ async function handleSubmit() {
   const n = clampInt($('n').value, 1, 6, 2);
 
   $('submit').disabled = true;
+  $('submit').classList.add('loading');
   $('clear').disabled = true;
-  setStatus('处理中：读取本地文件、上传 OSS、生成图片…');
-  renderResults([]);
+  setStatus('生成中，请等待…');
+  renderResults(null);
 
   try {
     const images = [];
@@ -302,10 +316,15 @@ async function handleSubmit() {
       images.push({ name: file.name, dataUrl });
     }
 
+    const baseIndex = clampInt($('baseIndex')?.value, 1, 3, 1) - 1;
+    const orderedImages = images.length >= 2 ? moveIndexToEnd(images, baseIndex) : images;
+    const orderHint = buildOrderHint(files, baseIndex);
+    const finalPrompt = orderHint ? `${orderHint}\n\n${prompt}` : prompt;
+
     const resp = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images, prompt, n }),
+      body: JSON.stringify({ images: orderedImages, prompt: finalPrompt, n }),
     });
 
     const data = await resp.json().catch(() => ({}));
@@ -321,6 +340,7 @@ async function handleSubmit() {
     setStatus(err?.message || String(err), 'error');
   } finally {
     $('submit').disabled = !currentUser || (currentQuota && currentQuota.remaining <= 0);
+    $('submit').classList.remove('loading');
     $('clear').disabled = false;
   }
 }
@@ -330,6 +350,8 @@ function handleClear() {
   $('prompt').value = '';
   $('n').value = '2';
   $('preview').innerHTML = '';
+  selectedFiles = [];
+  $('baseIndexWrap').hidden = true;
   $('results').innerHTML = '';
   setStatus('');
 }
@@ -361,8 +383,9 @@ function init() {
   }
 
   $('images').addEventListener('change', () => {
-    const files = Array.from($('images').files || []).slice(0, 6);
-    renderPreview(files);
+    selectedFiles = Array.from($('images').files || []).slice(0, 3);
+    syncBaseIndexOptions(selectedFiles.length);
+    renderPreview(selectedFiles);
     setStatus('');
   });
 
@@ -408,7 +431,50 @@ function init() {
     btn.addEventListener('click', () => appendPreset(btn.dataset.prompt));
   }
 
+  $('baseIndex')?.addEventListener('change', () => {
+    if (selectedFiles.length) renderPreview(selectedFiles);
+  });
+
   refreshMe().catch(() => setAuthUi({ user: null, quota: null }));
 }
 
 init();
+
+function syncBaseIndexOptions(count) {
+  const wrap = $('baseIndexWrap');
+  const select = $('baseIndex');
+  if (!wrap || !select) return;
+
+  if (count >= 2) {
+    wrap.hidden = false;
+  } else {
+    wrap.hidden = true;
+  }
+
+  select.innerHTML = '';
+  const max = Math.max(1, Math.min(3, count || 1));
+  for (let i = 1; i <= max; i += 1) {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = `第 ${i} 张`;
+    select.appendChild(opt);
+  }
+  if (!select.value) select.value = '1';
+}
+
+function moveIndexToEnd(arr, index) {
+  const i = clampInt(index, 0, arr.length - 1, 0);
+  if (arr.length <= 1) return arr.slice();
+  if (i === arr.length - 1) return arr.slice();
+  const out = arr.slice();
+  const [item] = out.splice(i, 1);
+  out.push(item);
+  return out;
+}
+
+function buildOrderHint(files, baseIndex) {
+  if (!files || files.length < 2) return '';
+  const base = clampInt(baseIndex, 0, files.length - 1, 0) + 1;
+  const pairs = files.map((f, idx) => `${idx + 1}=${f.name}`);
+  return `输入图片编号（从左到右）：${pairs.join('，')}。底图（被修改）= 第${base}张。`;
+}

@@ -318,8 +318,8 @@ async function handleGenerate(req, res) {
     sendJson(res, 400, { error: 'At least 1 image is required' });
     return;
   }
-  if (images.length > 6) {
-    sendJson(res, 400, { error: 'At most 6 input images are allowed' });
+  if (images.length > 3) {
+    sendJson(res, 400, { error: 'At most 3 input images are allowed' });
     return;
   }
 

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI 图片生成</title>
+    <title>P了么</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -11,7 +11,7 @@
       <header class="header">
         <div class="topbar">
           <div>
-            <h1>AI 图片生成</h1>
+            <h1>P了么 - AI 图片生成</h1>
           </div>
           <div class="authTop">
             <div class="authMeta">
@@ -88,10 +88,17 @@
         <div class="row">
           <label class="label" for="images">选择图片</label>
           <input id="images" type="file" accept="image/*" multiple />
-          <div class="hint">最多选择 6 张输入图片。</div>
+          <div class="hint">可同时选择多张（最多 3 张）。</div>
         </div>
 
         <div id="preview" class="preview"></div>
+        <div id="baseIndexWrap" class="row baseIndex" hidden>
+          <div class="baseIndexInner">
+            <div class="muted">底图（被修改的那张）</div>
+            <select id="baseIndex"></select>
+          </div>
+          <div class="hint">如果你希望“把第 1 张 P 成第 2 张的效果”，通常应选择底图为第 1 张。</div>
+        </div>
       </section>
 
       <section class="card" data-auth="required">
@@ -156,7 +163,7 @@
       </section>
 
       <footer class="footer">
-        <div>提示：服务端需要配置 <code>DASHSCOPE_API_KEY</code>；并确保 OSS 配置可用。</div>
+        <div>提示：点击【生成】按钮后，请耐心等到，一般 1min 内可生成</div>
       </footer>
     </main>
 
