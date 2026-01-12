@@ -46,6 +46,14 @@ npm start
 
 打开：`http://localhost:7993`
 
+### docker 部署
+
+```bash
+docker build -t ai-image:0.0.1 .
+
+docker run --name ai-image  -d -p 7993:7993 -v ./config.js:/home/www/ai-image/config.js  ai-image:0.0.1 start
+```
+
 ## 配置说明
 
 ### 必需
