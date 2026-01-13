@@ -1019,19 +1019,41 @@ async function handleSubmit() {
     const finalPrompt = orderHint ? `${orderHint}\n\n${prompt}` : prompt;
     const hd = Boolean($('hd')?.checked);
 
-    const resp = await fetch('/api/generate', {
+    const resp = await fetch('/api/generate?async=1', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ images: orderedImages, prompt: finalPrompt, n, hd, modelId }),
     });
 
-    const data = await resp.json().catch(() => ({}));
+    const start = await resp.json().catch(() => ({}));
     if (!resp.ok) {
+      const msg = start?.message ? `${start.error || 'Error'}: ${start.message}` : (start?.error || '请求失败');
+      throw new Error(msg);
+    }
+
+    const jobId = String(start?.jobId || '');
+    if (!jobId) throw new Error('Missing jobId');
+
+    const deadline = Date.now() + 6 * 60 * 1000;
+    let final = null;
+    while (Date.now() < deadline) {
+      const r = await fetch(`/api/generate?jobId=${encodeURIComponent(jobId)}`, { method: 'GET' });
+      const s = await r.json().catch(() => ({}));
+      if (s?.status === 'done') {
+        final = s?.result || null;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    if (!final) throw new Error('生成超时，请稍后重试。');
+    if (final.statusCode !== 200) {
+      const data = final.payload || {};
       const msg = data?.message ? `${data.error || 'Error'}: ${data.message}` : (data?.error || '请求失败');
       throw new Error(msg);
     }
 
     setResultsLoading(false);
+    const data = final.payload || {};
     prependResults(data.outputImageUrls || [], { originalSrc });
     if (data.quota) setAuthUi({ user: currentUser, quota: data.quota });
     setStatus(`完成：生成 ${((data.outputImageUrls || []).length)} 张图片。`);

@@ -8,6 +8,10 @@ const { ProviderError } = require('../providers/errors');
 const { getAuthUser } = require('../services/auth');
 const { getMonthKey, reserveQuota, adjustQuota, getQuota } = require('../services/quota');
 
+const jobStore = new Map(); // jobId -> { status, createdAt, doneAt, result }
+const JOB_TTL_MS = 60 * 60 * 1000;
+const JOB_MAX = 500;
+
 function parseDataUrl(dataUrl) {
   const match = /^data:([^;]+);base64,(.+)$/.exec(String(dataUrl || ''));
   if (!match) throw new Error('Invalid dataUrl');
@@ -25,28 +29,32 @@ function mimeToExt(mime) {
   return '';
 }
 
-async function generate({
-  req,
-  res,
-  axios,
-  pool,
-  dc,
-  ai,
-  nanoai,
-  monthlyLimit,
-  providerTimeoutMsDashScope,
-  providerTimeoutMsNanoAi,
-}) {
+function pruneJobs() {
+  const now = Date.now();
+  for (const [id, job] of jobStore.entries()) {
+    const ts = job?.doneAt || job?.createdAt || 0;
+    if (now - ts > JOB_TTL_MS) jobStore.delete(id);
+  }
+  // basic cap: delete oldest
+  if (jobStore.size <= JOB_MAX) return;
+  const ids = Array.from(jobStore.entries())
+    .sort((a, b) => (a[1]?.createdAt || 0) - (b[1]?.createdAt || 0))
+    .slice(0, Math.max(0, jobStore.size - JOB_MAX))
+    .map((x) => x[0]);
+  for (const id of ids) jobStore.delete(id);
+}
+
+async function parseAndAuth({ req, res, pool }) {
   let user;
   try {
     user = await getAuthUser({ pool, req });
   } catch (err) {
     sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
-    return;
+    return null;
   }
   if (!user) {
     sendJson(res, 401, { error: '请先登录' });
-    return;
+    return null;
   }
 
   let body;
@@ -55,10 +63,10 @@ async function generate({
   } catch (err) {
     if (err?.code === 'PAYLOAD_TOO_LARGE') {
       sendJson(res, 413, { error: 'Payload too large (max 60MB)' });
-      return;
+      return null;
     }
     sendJson(res, 400, { error: 'Failed to read request body' });
-    return;
+    return null;
   }
 
   let parsed;
@@ -66,15 +74,16 @@ async function generate({
     parsed = JSON.parse(body.toString('utf8'));
   } catch {
     sendJson(res, 400, { error: 'Invalid JSON' });
-    return;
+    return null;
   }
 
+  return { user, parsed };
+}
+
+function validateRequest(parsed) {
   const modelId = String(parsed?.modelId || 'dashscope');
   const provider = getProvider(modelId);
-  if (!provider) {
-    sendJson(res, 400, { error: `Unknown modelId: ${modelId}` });
-    return;
-  }
+  if (!provider) return { ok: false, statusCode: 400, payload: { error: `Unknown modelId: ${modelId}` } };
 
   const prompt = String(parsed?.prompt || '').trim();
   const nRaw = Number(parsed?.n);
@@ -85,30 +94,38 @@ async function generate({
   const images = Array.isArray(parsed?.images) ? parsed.images : [];
   const hd = Boolean(parsed?.hd);
 
-  if (!prompt) {
-    sendJson(res, 400, { error: 'Prompt is required' });
-    return;
-  }
-  if (images.length === 0) {
-    sendJson(res, 400, { error: 'At least 1 image is required' });
-    return;
-  }
-  if (images.length > 3) {
-    sendJson(res, 400, { error: 'At most 3 input images are allowed' });
-    return;
-  }
+  if (!prompt) return { ok: false, statusCode: 400, payload: { error: 'Prompt is required' } };
+  if (images.length === 0) return { ok: false, statusCode: 400, payload: { error: 'At least 1 image is required' } };
+  if (images.length > 3) return { ok: false, statusCode: 400, payload: { error: 'At most 3 input images are allowed' } };
+
+  return { ok: true, modelId, provider, prompt, n, images, hd };
+}
+
+async function runGenerate({
+  user,
+  parsed,
+  axios,
+  pool,
+  dc,
+  ai,
+  nanoai,
+  monthlyLimit,
+  providerTimeoutMsDashScope,
+  providerTimeoutMsNanoAi,
+}) {
+  const v = validateRequest(parsed);
+  if (!v.ok) return { statusCode: v.statusCode, payload: v.payload };
+  const { modelId, provider, prompt, n, images, hd } = v;
 
   const month = getMonthKey(new Date());
   let reservation;
   try {
     reservation = await reserveQuota({ pool, userId: user.id, month, count: n, monthlyLimit });
   } catch (err) {
-    sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
-    return;
+    return { statusCode: 500, payload: { error: `DB error: ${err?.message || String(err)}` } };
   }
   if (!reservation.ok) {
-    sendJson(res, 429, { error: '本月额度不足', quota: reservation.quota });
-    return;
+    return { statusCode: 429, payload: { error: '本月额度不足', quota: reservation.quota } };
   }
 
   const uploadedUrls = [];
@@ -130,8 +147,7 @@ async function generate({
     }
   } catch (err) {
     await adjustQuota({ pool, userId: user.id, month, delta: -reservation.reserved }).catch(() => {});
-    sendJson(res, 500, { error: `OSS upload failed: ${err?.message || String(err)}` });
-    return;
+    return { statusCode: 500, payload: { error: `OSS upload failed: ${err?.message || String(err)}` } };
   }
 
   const baseDim = inputDims.length ? inputDims[inputDims.length - 1] : null;
@@ -158,15 +174,76 @@ async function generate({
       await adjustQuota({ pool, userId: user.id, month, delta: -refund }).catch(() => {});
     }
     const quota = await getQuota({ pool, userId: user.id, month, monthlyLimit });
-    sendJson(res, 200, { inputImageUrls: uploadedUrls, outputImageUrls, quota, raw: result?.raw });
+    return { statusCode: 200, payload: { inputImageUrls: uploadedUrls, outputImageUrls, quota, raw: result?.raw } };
   } catch (err) {
     await adjustQuota({ pool, userId: user.id, month, delta: -reservation.reserved }).catch(() => {});
     if (err instanceof ProviderError) {
-      sendJson(res, err.statusCode, err.payload);
-      return;
+      return { statusCode: err.statusCode, payload: err.payload };
     }
-    sendJson(res, 502, { error: err?.message || String(err), inputImageUrls: uploadedUrls });
+    return { statusCode: 502, payload: { error: err?.message || String(err), inputImageUrls: uploadedUrls } };
   }
 }
 
-module.exports = { generate };
+async function generate(deps) {
+  const { req, res, pool } = deps;
+  const auth = await parseAndAuth({ req, res, pool });
+  if (!auth) return;
+  const result = await runGenerate({ ...deps, ...auth });
+  sendJson(res, result.statusCode, result.payload);
+}
+
+async function generateAsyncStart(deps) {
+  const { req, res, pool } = deps;
+  pruneJobs();
+  const auth = await parseAndAuth({ req, res, pool });
+  if (!auth) return;
+
+  const v = validateRequest(auth.parsed);
+  if (!v.ok) {
+    sendJson(res, v.statusCode, v.payload);
+    return;
+  }
+
+  const jobId = crypto.randomBytes(12).toString('hex');
+  jobStore.set(jobId, { status: 'running', createdAt: Date.now(), doneAt: null, result: null });
+
+  // run in background
+  (async () => {
+    const job = jobStore.get(jobId);
+    if (!job) return;
+    try {
+      const result = await runGenerate({ ...deps, ...auth });
+      job.status = 'done';
+      job.doneAt = Date.now();
+      job.result = result;
+    } catch (err) {
+      job.status = 'done';
+      job.doneAt = Date.now();
+      job.result = { statusCode: 500, payload: { error: err?.message || String(err) } };
+    }
+  })();
+
+  sendJson(res, 202, { jobId });
+}
+
+function generateAsyncStatus({ req, res }) {
+  pruneJobs();
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const jobId = String(url.searchParams.get('jobId') || '');
+  if (!jobId) {
+    sendJson(res, 400, { error: 'jobId is required' });
+    return;
+  }
+  const job = jobStore.get(jobId);
+  if (!job) {
+    sendJson(res, 404, { error: 'job not found' });
+    return;
+  }
+  if (job.status !== 'done') {
+    sendJson(res, 200, { status: job.status });
+    return;
+  }
+  sendJson(res, 200, { status: 'done', result: job.result });
+}
+
+module.exports = { generate, generateAsyncStart, generateAsyncStatus };

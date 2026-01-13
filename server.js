@@ -60,7 +60,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/generate') {
     req.setTimeout(generateRequestTimeoutMs);
     res.setTimeout(generateRequestTimeoutMs);
-    await generateRoutes.generate({
+    const isAsync = url.searchParams.get('async') === '1';
+    const handler = isAsync ? generateRoutes.generateAsyncStart : generateRoutes.generate;
+    await handler({
       req,
       res,
       axios,
@@ -72,6 +74,10 @@ const server = http.createServer(async (req, res) => {
       providerTimeoutMsDashScope,
       providerTimeoutMsNanoAi,
     });
+    return;
+  }
+  if (req.method === 'GET' && url.pathname === '/api/generate') {
+    await generateRoutes.generateAsyncStatus({ req, res });
     return;
   }
 
