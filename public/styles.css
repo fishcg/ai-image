@@ -434,6 +434,22 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   min-width: 0;
 }
 .modalTools input[type="range"] { width: 180px; }
+.paintTools {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255,255,255,0.10);
+}
+.paintTools input[type="color"] {
+  width: 38px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
+}
+.paintTools input[type="range"] { width: 120px; }
 
 .imageModalCard { width: min(980px, 100%); }
 .imageViewer {
@@ -445,7 +461,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   justify-content: center;
   height: min(72vh, 720px);
 }
-.imageViewer img {
+.imageViewer img,
+.imageViewer canvas {
   width: auto;
   height: auto;
   max-width: 100%;
@@ -458,6 +475,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   user-select: none;
   touch-action: none;
 }
+#paintModal canvas { cursor: crosshair; }
 
 .formError {
   margin-top: 10px;

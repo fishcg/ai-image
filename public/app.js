@@ -72,7 +72,7 @@ const presets = {
   '色温调整-冷':
     '整体色温偏冷（cool tone），更通透清爽，避免偏蓝发灰，白平衡自然。',
   '去路人':
-    '去掉背景路人/杂物（remove people/clutter），背景更干净，保留主体完整，边缘自然无涂抹痕迹。',
+    '保持背景不变，但是去掉背景中的路人/杂物（remove people/clutter），让背景更干净，保留主体完整，边缘自然无涂抹痕迹。',
   '背景简化':
     '简化背景元素与纹理（background simplify），减少干扰物，主体突出，避免背景变形与糊成一片。',
   '漫展补光':
@@ -107,9 +107,28 @@ const MODEL_STORAGE_KEY = 'ai-image:modelId';
 const NANO_MODEL_IDS = new Set(['google-nano-banana-pro']);
 let modalGallery = null;
 let modalDrag = null;
+let modalPaint = null;
+let paintGallery = null;
+let paintDrag = null;
+const editedImageDataUrls = new Map(); // fileKey -> dataUrl
+const originalImageDataUrls = new Map(); // fileKey -> dataUrl (cached)
+let isSpaceDown = false;
 
 function isNanoModel(modelId) {
   return NANO_MODEL_IDS.has(String(modelId || ''));
+}
+
+function fileKey(file) {
+  if (!file) return '';
+  return `${file.name}::${file.size}::${file.lastModified}`;
+}
+
+function getSelectedFileByKey(key) {
+  const k = String(key || '');
+  for (const f of selectedFiles || []) {
+    if (fileKey(f) === k) return f;
+  }
+  return null;
 }
 
 function setStatus(text, type = 'info') {
@@ -128,6 +147,16 @@ function openModal(id) {
 function closeModal(id) {
   const el = $(id);
   if (!el) return;
+  if (id === 'paintModal') {
+    commitPaintedImage();
+    modalPaint = null;
+    paintDrag = null;
+    paintGallery = null;
+  }
+  if (id === 'imageModal') {
+    modalDrag = null;
+    modalGallery = null;
+  }
   el.hidden = true;
   document.body.style.overflow = '';
 }
@@ -145,6 +174,7 @@ function setModalImage({ src, title, originalSrc, mode = 'new' }) {
   const a = $('imageModalOpen');
   const toggleBtn = $('toggleOriginal');
   if (!img || !a) return false;
+
   const newSrc = String(src || '');
   const original = String(originalSrc || '');
   const hasOriginal = Boolean(original) && original !== newSrc;
@@ -158,6 +188,9 @@ function setModalImage({ src, title, originalSrc, mode = 'new' }) {
   img.dataset.baseH = '';
   img.style.width = '';
   img.style.height = '';
+  img.style.maxWidth = '';
+  img.style.maxHeight = '';
+  img.style.transform = '';
   img.src = nextSrc;
   img.alt = title || 'preview';
   a.href = nextSrc;
@@ -219,27 +252,33 @@ function setModalPan(x, y) {
 }
 
 function captureModalBaseSize() {
-  const viewer = document.querySelector('.imageViewer');
+  const viewer = document.querySelector('#imageModal .imageViewer');
   const img = $('imageModalImg');
   if (!viewer || !img) return;
 
   const prevTransform = img.style.transform;
   const prevWidth = img.style.width;
   const prevHeight = img.style.height;
+  const prevMaxW = img.style.maxWidth;
+  const prevMaxH = img.style.maxHeight;
   img.style.transform = 'translate(0px, 0px)';
   img.style.width = '';
   img.style.height = '';
+  img.style.maxWidth = '';
+  img.style.maxHeight = '';
   const rect = img.getBoundingClientRect();
   img.style.transform = prevTransform;
   img.style.width = prevWidth;
   img.style.height = prevHeight;
+  img.style.maxWidth = prevMaxW;
+  img.style.maxHeight = prevMaxH;
 
   img.dataset.baseW = String(Math.max(1, Math.round(rect.width || 0)));
   img.dataset.baseH = String(Math.max(1, Math.round(rect.height || 0)));
 }
 
 function clampModalPan(x, y, zoom) {
-  const viewer = document.querySelector('.imageViewer');
+  const viewer = document.querySelector('#imageModal .imageViewer');
   const img = $('imageModalImg');
   if (!viewer || !img) return { x, y };
   const vw = viewer.clientWidth || 0;
@@ -296,17 +335,346 @@ function applyModalTransform() {
   img.style.cursor = modalDrag ? 'grabbing' : 'grab';
 }
 
+function getPaintTransparency() {
+  const el = $('paintTransparency');
+  return clampInt(el ? el.value : 80, 0, 100, 80);
+}
+
+function getPaintAlpha() {
+  return 1 - getPaintTransparency() / 100;
+}
+
+function syncPaintUi() {
+  const badge = $('paintAlphaValue');
+  if (badge) badge.textContent = `${Math.round(getPaintAlpha() * 100)}%`;
+}
+
+function hexToRgb(hex) {
+  const s = String(hex || '').trim();
+  const m = /^#?([0-9a-f]{6})$/i.exec(s);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function getPaintColorRgba(alpha) {
+  const color = $('paintColor')?.value || '#ff0000';
+  const rgb = hexToRgb(color) || { r: 255, g: 0, b: 0 };
+  const a = Math.max(0, Math.min(1, Number(alpha)));
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
+}
+
+function getPaintFeather() {
+  const el = $('paintFeather');
+  return clampInt(el ? el.value : 40, 0, 100, 40);
+}
+
+function canvasPointFromEvent(e, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const scaleX = rect.width ? canvas.width / rect.width : 1;
+  const scaleY = rect.height ? canvas.height / rect.height : 1;
+  return {
+    x: Math.max(0, Math.min(canvas.width, cx * scaleX)),
+    y: Math.max(0, Math.min(canvas.height, cy * scaleY)),
+  };
+}
+
+function stampBrush(ctx, x, y, radius, featherPct, rgba) {
+  const r = Math.max(1, Number(radius) || 1);
+  const f = Math.max(0, Math.min(100, Number(featherPct) || 0)) / 100;
+  const inner = Math.max(0, r * (1 - f));
+
+  const grad = ctx.createRadialGradient(x, y, inner, x, y, r);
+  grad.addColorStop(0, rgba);
+  grad.addColorStop(1, rgba.replace(/rgba\(([^)]+),\s*([01]?\.?\d+)\)/, 'rgba($1, 0)'));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+async function loadImageElement(src) {
+  const url = String(src || '');
+  if (!url) throw new Error('Missing image src');
+  const img = new Image();
+  img.decoding = 'async';
+  img.src = url;
+  try {
+    await img.decode();
+  } catch {
+    await new Promise((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load image'));
+    });
+  }
+  return img;
+}
+
+async function ensureOriginalDataUrl(key) {
+  const k = String(key || '');
+  if (!k) return '';
+  if (originalImageDataUrls.has(k)) return originalImageDataUrls.get(k);
+  const f = getSelectedFileByKey(k);
+  if (!f) return '';
+  const dataUrl = await fileToDataUrl(f);
+  originalImageDataUrls.set(k, dataUrl);
+  return dataUrl;
+}
+
+function updatePreviewThumbSrc(key, dataUrl) {
+  const k = String(key || '');
+  const url = String(dataUrl || '');
+  if (!k || !url) return;
+  const el = document.querySelector(`#preview img[data-file-key="${CSS.escape(k)}"]`);
+  if (!el) return;
+  el.src = url;
+  el.dataset.fullSrc = url;
+}
+
+function startPaintSession(fileKeyValue) {
+  modalPaint = { fileKey: String(fileKeyValue || ''), undo: null };
+  const undoBtn = $('paintUndo');
+  if (undoBtn) undoBtn.disabled = true;
+}
+
+function commitPaintedImage() {
+  const key = modalPaint?.fileKey;
+  const canvas = $('paintCanvas');
+  if (!key || !canvas) return;
+  const dataUrl = canvas.toDataURL('image/png');
+  editedImageDataUrls.set(key, dataUrl);
+  updatePreviewThumbSrc(key, dataUrl);
+}
+
+function undoPaint() {
+  const canvas = $('paintCanvas');
+  const ctx = canvas?.getContext?.('2d');
+  if (!canvas || !ctx || !modalPaint?.undo) return;
+  ctx.putImageData(modalPaint.undo, 0, 0);
+  modalPaint.undo = null;
+  const undoBtn = $('paintUndo');
+  if (undoBtn) undoBtn.disabled = true;
+  commitPaintedImage();
+}
+
+function getPaintZoom() {
+  const el = $('paintZoomRange');
+  const percent = clampInt(el ? el.value : 100, 100, 300, 100);
+  return percent / 100;
+}
+
+function setPaintZoom(percent) {
+  const el = $('paintZoomRange');
+  const label = $('paintZoomValue');
+  const p = clampInt(percent, 100, 300, 100);
+  if (el) el.value = String(p);
+  if (label) label.textContent = `${p}%`;
+  if (p <= 100) setPaintPan(0, 0);
+}
+
+function getPaintPan() {
+  const canvas = $('paintCanvas');
+  const x = Number(canvas?.dataset?.panX || '0');
+  const y = Number(canvas?.dataset?.panY || '0');
+  return {
+    x: Number.isFinite(x) ? x : 0,
+    y: Number.isFinite(y) ? y : 0,
+  };
+}
+
+function setPaintPan(x, y) {
+  const canvas = $('paintCanvas');
+  if (!canvas) return;
+  canvas.dataset.panX = String(Math.round(Number(x) || 0));
+  canvas.dataset.panY = String(Math.round(Number(y) || 0));
+}
+
+function capturePaintBaseSize() {
+  const viewer = document.querySelector('#paintModal .imageViewer');
+  const canvas = $('paintCanvas');
+  if (!viewer || !canvas) return;
+
+  const prevTransform = canvas.style.transform;
+  const prevWidth = canvas.style.width;
+  const prevHeight = canvas.style.height;
+  const prevMaxW = canvas.style.maxWidth;
+  const prevMaxH = canvas.style.maxHeight;
+  canvas.style.transform = 'translate(0px, 0px)';
+  canvas.style.width = '';
+  canvas.style.height = '';
+  canvas.style.maxWidth = '';
+  canvas.style.maxHeight = '';
+  const rect = canvas.getBoundingClientRect();
+  canvas.style.transform = prevTransform;
+  canvas.style.width = prevWidth;
+  canvas.style.height = prevHeight;
+  canvas.style.maxWidth = prevMaxW;
+  canvas.style.maxHeight = prevMaxH;
+
+  canvas.dataset.baseW = String(Math.max(1, Math.round(rect.width || 0)));
+  canvas.dataset.baseH = String(Math.max(1, Math.round(rect.height || 0)));
+}
+
+function clampPaintPan(x, y, zoom) {
+  const viewer = document.querySelector('#paintModal .imageViewer');
+  const canvas = $('paintCanvas');
+  if (!viewer || !canvas) return { x, y };
+  const vw = viewer.clientWidth || 0;
+  const vh = viewer.clientHeight || 0;
+  const baseW = Number(canvas.dataset.baseW || '0');
+  const baseH = Number(canvas.dataset.baseH || '0');
+  if (!vw || !vh || !baseW || !baseH) return { x, y };
+
+  const scaledW = baseW * zoom;
+  const scaledH = baseH * zoom;
+  const maxX = Math.max(0, (scaledW - vw) / 2);
+  const maxY = Math.max(0, (scaledH - vh) / 2);
+
+  const cx = Math.max(-maxX, Math.min(maxX, x));
+  const cy = Math.max(-maxY, Math.min(maxY, y));
+  return { x: cx, y: cy };
+}
+
+function applyPaintTransform() {
+  const canvas = $('paintCanvas');
+  if (!canvas) return;
+  const zoom = getPaintZoom();
+  const { x, y } = getPaintPan();
+
+  if (zoom <= 1) {
+    canvas.style.width = '';
+    canvas.style.height = '';
+    canvas.style.maxWidth = '';
+    canvas.style.maxHeight = '';
+    canvas.style.transform = 'translate(0px, 0px)';
+    canvas.style.cursor = 'crosshair';
+    setPaintPan(0, 0);
+    return;
+  }
+
+  const baseW = Number(canvas.dataset.baseW || '0');
+  const baseH = Number(canvas.dataset.baseH || '0');
+  if (!baseW || !baseH) capturePaintBaseSize();
+
+  const bw = Number(canvas.dataset.baseW || '0');
+  const bh = Number(canvas.dataset.baseH || '0');
+  if (bw && bh) {
+    canvas.style.maxWidth = 'none';
+    canvas.style.maxHeight = 'none';
+    canvas.style.width = `${Math.max(1, Math.round(bw * zoom))}px`;
+    canvas.style.height = `${Math.max(1, Math.round(bh * zoom))}px`;
+  }
+
+  const clamped = clampPaintPan(x, y, zoom);
+  if (clamped.x !== x || clamped.y !== y) setPaintPan(clamped.x, clamped.y);
+  canvas.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
+  canvas.style.cursor = zoom > 1 && (paintDrag || isSpaceDown) ? (paintDrag ? 'grabbing' : 'grab') : 'crosshair';
+}
+
+function syncPaintNavButtons() {
+  const prevBtn = $('paintPrev');
+  const nextBtn = $('paintNext');
+  if (!prevBtn || !nextBtn) return;
+  const count = paintGallery?.items?.length || 0;
+  const idx = clampInt(paintGallery?.index, 0, Math.max(0, count - 1), 0);
+  const show = count >= 2;
+  prevBtn.hidden = !show;
+  nextBtn.hidden = !show;
+  prevBtn.disabled = !show || idx <= 0;
+  nextBtn.disabled = !show || idx >= count - 1;
+}
+
+async function showPaintGalleryIndex(index) {
+  const items = paintGallery?.items;
+  if (!Array.isArray(items) || items.length === 0) return;
+
+  commitPaintedImage();
+
+  const i = clampInt(index, 0, items.length - 1, 0);
+  paintGallery.index = i;
+
+  const item = items[i] || {};
+  const key = String(item.fileKey || '');
+  if (!key) return;
+
+  syncPaintUi();
+  startPaintSession(key);
+  setPaintZoom(100);
+  setPaintPan(0, 0);
+
+  const canvas = $('paintCanvas');
+  if (!canvas) return;
+
+  const src = editedImageDataUrls.get(key) || (await ensureOriginalDataUrl(key));
+  if (!src) return;
+
+  const img = await loadImageElement(src);
+  const maxSide = 4096;
+  let w = img.naturalWidth || img.width || 1;
+  let h = img.naturalHeight || img.height || 1;
+  if (Math.max(w, h) > maxSide) {
+    const scale = maxSide / Math.max(w, h);
+    w = Math.max(1, Math.round(w * scale));
+    h = Math.max(1, Math.round(h * scale));
+  }
+
+  canvas.width = w;
+  canvas.height = h;
+  canvas.dataset.baseW = '';
+  canvas.dataset.baseH = '';
+  canvas.style.width = '';
+  canvas.style.height = '';
+  canvas.style.maxWidth = '';
+  canvas.style.maxHeight = '';
+  canvas.style.transform = '';
+  canvas.dataset.panX = '0';
+  canvas.dataset.panY = '0';
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const t = $('paintTitle');
+  if (t) t.textContent = item.title || '原图涂抹';
+
+  setTimeout(() => {
+    capturePaintBaseSize();
+    applyPaintTransform();
+    syncPaintNavButtons();
+  }, 0);
+}
+
+function openPaintModal({ items, index }) {
+  paintGallery = { items: Array.isArray(items) ? items : [], index: clampInt(index, 0, Math.max(0, (items?.length || 1) - 1), 0) };
+  showPaintGalleryIndex(paintGallery.index).catch(() => {});
+  syncPaintNavButtons();
+  openModal('paintModal');
+}
+
+function openPaintForFile({ fileKey: key }) {
+  const k = String(key || '');
+  if (!k) return;
+  const idx = Math.max(0, (selectedFiles || []).findIndex((f) => fileKey(f) === k));
+  const items = (selectedFiles || []).map((f, i) => ({ fileKey: fileKey(f), title: `原图 ${i + 1}：${f.name}` }));
+  openPaintModal({ items, index: idx === -1 ? 0 : idx });
+}
+
 function showModalGalleryIndex(index) {
   const items = modalGallery?.items;
   if (!Array.isArray(items) || items.length === 0) return;
   const i = clampInt(index, 0, items.length - 1, 0);
   modalGallery.index = i;
 
+  const item = items[i] || {};
   const img = $('imageModalImg');
   const mode = img?.dataset?.mode === 'original' ? 'original' : 'new';
-  const item = items[i] || {};
   setModalImage({ src: item.src, title: item.title, originalSrc: item.originalSrc, mode });
+  setModalZoom(100);
   setModalPan(0, 0);
+  captureModalBaseSize();
   applyModalTransform();
   syncModalNavButtons();
 }
@@ -316,14 +684,10 @@ function openImageViewer({ src, title, originalSrc, gallery }) {
     const idx = clampInt(gallery.index, 0, Math.max(0, gallery.items.length - 1), 0);
     modalGallery = { items: gallery.items, index: idx };
   } else {
-    modalGallery = null;
+    modalGallery = { items: [{ kind: 'output', src, originalSrc, title }], index: 0 };
   }
 
-  setModalImage({ src, title, originalSrc, mode: 'new' });
-  setModalZoom(100);
-  setModalPan(0, 0);
-  captureModalBaseSize();
-  applyModalTransform();
+  showModalGalleryIndex(modalGallery.index || 0);
   syncModalNavButtons();
   openModal('imageModal');
 }
@@ -485,6 +849,7 @@ function renderPreview(files) {
   const baseIdx = clampInt($('baseIndex')?.value, 1, 3, 1) - 1;
 
   for (const [idx, file] of files.entries()) {
+    const key = fileKey(file);
     const div = document.createElement('div');
     div.className = 'thumb';
     if (idx === baseIdx && files.length >= 2) div.classList.add('base');
@@ -495,7 +860,9 @@ function renderPreview(files) {
 
     const img = document.createElement('img');
     img.alt = file.name;
-    img.src = URL.createObjectURL(file);
+    img.dataset.fileKey = key;
+    const edited = key ? editedImageDataUrls.get(key) : '';
+    img.src = edited || URL.createObjectURL(file);
     img.dataset.fullSrc = img.src;
 
     const name = document.createElement('div');
@@ -639,7 +1006,9 @@ async function handleSubmit() {
   try {
     const images = [];
     for (const file of files) {
-      const dataUrl = await fileToDataUrl(file);
+      const key = fileKey(file);
+      const edited = key ? editedImageDataUrls.get(key) : '';
+      const dataUrl = edited || (await fileToDataUrl(file));
       images.push({ name: file.name, dataUrl });
     }
 
@@ -682,6 +1051,9 @@ function handleClear() {
   $('n').value = '2';
   $('preview').innerHTML = '';
   selectedFiles = [];
+  editedImageDataUrls.clear();
+  originalImageDataUrls.clear();
+  modalPaint = null;
   updateFileInfo([]);
   $('baseIndexWrap').hidden = true;
   $('results').innerHTML = '';
@@ -735,15 +1107,13 @@ function init() {
   $('preview')?.addEventListener('click', (e) => {
     const img = e.target?.closest?.('img');
     if (!img) return;
-    const src = img.dataset.fullSrc || img.src;
-    const imgs = Array.from($('preview')?.querySelectorAll?.('img') || []);
-    const items = imgs.map((el) => ({
-      src: el.dataset.fullSrc || el.src,
-      title: el.alt || '预览',
-      originalSrc: '',
+    const key = img.dataset.fileKey || '';
+    const items = (selectedFiles || []).map((f, idx) => ({
+      fileKey: fileKey(f),
+      title: `原图 ${idx + 1}：${f.name}`,
     }));
-    const index = Math.max(0, imgs.indexOf(img));
-    openImageViewer({ src, title: img.alt || '预览', gallery: { items, index } });
+    const index = Math.max(0, items.findIndex((it) => it.fileKey === key));
+    openPaintModal({ items, index: index === -1 ? 0 : index });
   });
 
   $('results')?.addEventListener('click', (e) => {
@@ -753,6 +1123,7 @@ function init() {
     const originalSrc = img.dataset.originalSrc || '';
     const imgs = Array.from($('results')?.querySelectorAll?.('.result img') || []);
     const items = imgs.map((el) => ({
+      kind: 'output',
       src: el.dataset.fullSrc || el.src,
       title: '输出预览',
       originalSrc: el.dataset.originalSrc || '',
@@ -794,20 +1165,28 @@ function init() {
     applyModalTransform();
   });
 
-  $('imageModalImg')?.addEventListener('pointerdown', (e) => {
+  document.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space') return;
+    isSpaceDown = true;
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.code !== 'Space') return;
+    isSpaceDown = false;
+  });
+
+  const startPreviewPan = (e, el) => {
     const zoom = getModalZoom();
     if (zoom <= 1) return;
-    const img = $('imageModalImg');
-    if (!img) return;
     e.preventDefault();
     const { x, y } = getModalPan();
     modalDrag = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, baseX: x, baseY: y };
     try {
-      img.setPointerCapture(e.pointerId);
+      el.setPointerCapture(e.pointerId);
     } catch {}
     applyModalTransform();
-  });
-  $('imageModalImg')?.addEventListener('pointermove', (e) => {
+  };
+
+  const movePreviewPan = (e) => {
     if (!modalDrag || modalDrag.pointerId !== e.pointerId) return;
     const zoom = getModalZoom();
     if (zoom <= 1) return;
@@ -818,14 +1197,183 @@ function init() {
     const clamped = clampModalPan(nextX, nextY, zoom);
     setModalPan(clamped.x, clamped.y);
     applyModalTransform();
-  });
-  const endDrag = (e) => {
+  };
+
+  const endPreviewPan = (e) => {
     if (!modalDrag || modalDrag.pointerId !== e.pointerId) return;
     modalDrag = null;
     applyModalTransform();
   };
-  $('imageModalImg')?.addEventListener('pointerup', endDrag);
-  $('imageModalImg')?.addEventListener('pointercancel', endDrag);
+
+  const imgEl = $('imageModalImg');
+  if (imgEl) {
+    imgEl.addEventListener('pointerdown', (e) => startPreviewPan(e, imgEl));
+    imgEl.addEventListener('pointermove', movePreviewPan);
+    imgEl.addEventListener('pointerup', endPreviewPan);
+    imgEl.addEventListener('pointercancel', endPreviewPan);
+  }
+
+  const paintZoomRange = $('paintZoomRange');
+  if (paintZoomRange) {
+    paintZoomRange.addEventListener('input', () => {
+      const percent = clampInt(paintZoomRange.value, 100, 300, 100);
+      setPaintZoom(percent);
+      applyPaintTransform();
+    });
+  }
+
+  const startPaintPan = (e, el) => {
+    const zoom = getPaintZoom();
+    if (zoom <= 1) return;
+    e.preventDefault();
+    const { x, y } = getPaintPan();
+    paintDrag = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, baseX: x, baseY: y };
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch {}
+    applyPaintTransform();
+  };
+
+  const movePaintPan = (e) => {
+    if (!paintDrag || paintDrag.pointerId !== e.pointerId) return;
+    const zoom = getPaintZoom();
+    if (zoom <= 1) return;
+    const dx = e.clientX - paintDrag.startX;
+    const dy = e.clientY - paintDrag.startY;
+    const nextX = paintDrag.baseX + dx;
+    const nextY = paintDrag.baseY + dy;
+    const clamped = clampPaintPan(nextX, nextY, zoom);
+    setPaintPan(clamped.x, clamped.y);
+    applyPaintTransform();
+  };
+
+  const endPaintPan = (e) => {
+    if (!paintDrag || paintDrag.pointerId !== e.pointerId) return;
+    paintDrag = null;
+    applyPaintTransform();
+  };
+
+  const canvasEl = $('paintCanvas');
+  if (canvasEl) {
+    canvasEl.addEventListener('pointerdown', (e) => {
+      const zoom = getPaintZoom();
+      if (zoom > 1 && isSpaceDown) {
+        startPaintPan(e, canvasEl);
+        return;
+      }
+
+      const ctx = canvasEl.getContext('2d');
+      if (!ctx) return;
+      e.preventDefault();
+      const { x, y } = canvasPointFromEvent(e, canvasEl);
+
+      if (modalPaint && !modalPaint.undo) {
+        try {
+          modalPaint.undo = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+        } catch {}
+        const undoBtn = $('paintUndo');
+        if (undoBtn) undoBtn.disabled = !modalPaint.undo;
+      }
+
+      modalPaint = modalPaint || {};
+      modalPaint.pointerId = e.pointerId;
+      modalPaint.drawing = true;
+      modalPaint.lastX = x;
+      modalPaint.lastY = y;
+
+      try {
+        canvasEl.setPointerCapture(e.pointerId);
+      } catch {}
+
+      const alpha = getPaintAlpha();
+      const feather = getPaintFeather();
+      const rgba = getPaintColorRgba(alpha);
+      stampBrush(ctx, x, y, 28, feather, rgba);
+    });
+
+    canvasEl.addEventListener('pointermove', (e) => {
+      if (!modalPaint?.drawing || modalPaint.pointerId !== e.pointerId) {
+        movePaintPan(e);
+        return;
+      }
+      const ctx = canvasEl.getContext('2d');
+      if (!ctx) return;
+      e.preventDefault();
+      const pt = canvasPointFromEvent(e, canvasEl);
+
+      const alpha = getPaintAlpha();
+      const feather = getPaintFeather();
+      const rgba = getPaintColorRgba(alpha);
+      const radius = 28;
+      const spacing = Math.max(3, radius * 0.35);
+
+      const x0 = modalPaint.lastX;
+      const y0 = modalPaint.lastY;
+      const dx = pt.x - x0;
+      const dy = pt.y - y0;
+      const dist = Math.hypot(dx, dy);
+      const steps = Math.max(1, Math.floor(dist / spacing));
+      for (let i = 1; i <= steps; i += 1) {
+        const t = i / steps;
+        stampBrush(ctx, x0 + dx * t, y0 + dy * t, radius, feather, rgba);
+      }
+
+      modalPaint.lastX = pt.x;
+      modalPaint.lastY = pt.y;
+    });
+
+    const endPaint = (e) => {
+      if (modalPaint?.drawing && modalPaint.pointerId === e.pointerId) {
+        modalPaint.drawing = false;
+        modalPaint.pointerId = null;
+        commitPaintedImage();
+      } else {
+        endPaintPan(e);
+      }
+    };
+    canvasEl.addEventListener('pointerup', endPaint);
+    canvasEl.addEventListener('pointercancel', endPaint);
+  }
+
+  $('paintTransparency')?.addEventListener('input', syncPaintUi);
+  $('paintUndo')?.addEventListener('click', () => undoPaint());
+  $('paintReset')?.addEventListener('click', async () => {
+    const key = modalPaint?.fileKey;
+    const canvas = $('paintCanvas');
+    const ctx = canvas?.getContext?.('2d');
+    if (!key || !canvas || !ctx) return;
+    const src = await ensureOriginalDataUrl(key);
+    if (!src) return;
+    const img = await loadImageElement(src);
+    const maxSide = 4096;
+    let w = img.naturalWidth || img.width || 1;
+    let h = img.naturalHeight || img.height || 1;
+    if (Math.max(w, h) > maxSide) {
+      const scale = maxSide / Math.max(w, h);
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+    }
+    canvas.width = w;
+    canvas.height = h;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    modalPaint.undo = null;
+    const undoBtn = $('paintUndo');
+    if (undoBtn) undoBtn.disabled = true;
+    commitPaintedImage();
+    setPaintZoom(100);
+    capturePaintBaseSize();
+    applyPaintTransform();
+  });
+
+  $('paintPrev')?.addEventListener('click', () => {
+    if (!paintGallery) return;
+    showPaintGalleryIndex((paintGallery.index || 0) - 1).catch(() => {});
+  });
+  $('paintNext')?.addEventListener('click', () => {
+    if (!paintGallery) return;
+    showPaintGalleryIndex((paintGallery.index || 0) + 1).catch(() => {});
+  });
 
   $('prevImage')?.addEventListener('click', () => {
     if (!modalGallery) return;
@@ -899,8 +1447,14 @@ function init() {
   refreshMe().catch(() => setAuthUi({ user: null, quota: null }));
 
   window.addEventListener('resize', () => {
-    captureModalBaseSize();
-    applyModalTransform();
+    if (!$('imageModal')?.hidden) {
+      captureModalBaseSize();
+      applyModalTransform();
+    }
+    if (!$('paintModal')?.hidden) {
+      capturePaintBaseSize();
+      applyPaintTransform();
+    }
   });
 }
 

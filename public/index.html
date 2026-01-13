@@ -108,6 +108,39 @@
         </div>
       </div>
 
+      <div id="paintModal" class="modal" hidden>
+        <div class="modalCard imageModalCard" role="dialog" aria-modal="true" aria-labelledby="paintTitle">
+          <div class="modalHeader">
+            <div id="paintTitle" class="modalTitle">原图涂抹</div>
+            <button class="iconBtn" type="button" data-close-modal="paintModal" aria-label="关闭">×</button>
+          </div>
+          <div class="modalBody imageViewer">
+            <canvas id="paintCanvas"></canvas>
+          </div>
+          <div class="modalFooter">
+            <div class="modalTools">
+              <span class="muted">缩放</span>
+              <input id="paintZoomRange" type="range" min="100" max="300" value="100" step="5" />
+              <span id="paintZoomValue" class="badge">100%</span>
+              <div class="paintTools">
+                <span class="muted">画笔</span>
+                <input id="paintColor" type="color" value="#ff0000" title="颜色" />
+                <span class="muted">羽化</span>
+                <input id="paintFeather" type="range" min="0" max="100" value="40" step="1" />
+                <span class="muted">透明度</span>
+                <input id="paintTransparency" type="range" min="0" max="100" value="80" step="1" />
+                <span id="paintAlphaValue" class="badge">20%</span>
+                <button id="paintUndo" class="secondary" type="button">撤销</button>
+                <button id="paintReset" class="secondary" type="button">重置</button>
+              </div>
+            </div>
+            <button id="paintPrev" class="secondary" type="button">上一张</button>
+            <button id="paintNext" class="secondary" type="button">下一张</button>
+            <button class="secondary" type="button" data-close-modal="paintModal">关闭</button>
+          </div>
+        </div>
+      </div>
+
       <section class="card" data-auth="required">
         <div class="row">
           <div>
