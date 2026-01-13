@@ -103,6 +103,7 @@ let currentUser = null;
 let currentQuota = null;
 let selectedFiles = [];
 const selectedPresets = new Set();
+const MODEL_STORAGE_KEY = 'ai-image:modelId';
 
 function setStatus(text, type = 'info') {
   const el = $('status');
@@ -407,11 +408,12 @@ async function handleSubmit() {
     const orderHint = buildOrderHint(files, baseIndex);
     const finalPrompt = orderHint ? `${orderHint}\n\n${prompt}` : prompt;
     const hd = Boolean($('hd')?.checked);
+    const modelId = String($('modelId')?.value || 'dashscope');
 
     const resp = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images: orderedImages, prompt: finalPrompt, n, hd }),
+      body: JSON.stringify({ images: orderedImages, prompt: finalPrompt, n, hd, modelId }),
     });
 
     const data = await resp.json().catch(() => ({}));
@@ -518,6 +520,15 @@ function init() {
   $('logout').addEventListener('click', () => handleLogout());
   $('guestLogin')?.addEventListener('click', () => $('openLogin')?.click());
   $('guestRegister')?.addEventListener('click', () => $('openRegister')?.click());
+
+  const modelSelect = $('modelId');
+  if (modelSelect) {
+    const saved = localStorage.getItem(MODEL_STORAGE_KEY);
+    if (saved) modelSelect.value = saved;
+    modelSelect.addEventListener('change', () => {
+      localStorage.setItem(MODEL_STORAGE_KEY, String(modelSelect.value || 'dashscope'));
+    });
+  }
 
   for (const btn of document.querySelectorAll('[data-close-modal]')) {
     btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));

@@ -41,4 +41,13 @@ const auth = {
   registrationCode: process.env.REGISTRATION_CODE || 'CHANGE_ME_REGISTRATION_CODE',
 };
 
-module.exports = { http, dc, ai, aliyun, mysql, auth };
+const nanoai = {
+  apiUrl: 'https://www.test.ai/api',
+  apiKey: 'YOUR_NANOAI_API_KEY',
+  model: 'gemini-3-pro-image-preview',
+  imageSize: '2K',
+  imageSizeHd: '4K',
+  timeout: 120000,
+};
+
+module.exports = { http, dc, ai, aliyun, mysql, auth, nanoai };

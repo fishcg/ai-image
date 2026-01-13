@@ -66,6 +66,7 @@ code { color: rgba(255,255,255,0.85); }
 .me { font-size: 13px; color: rgba(255,255,255,0.85); }
 
 .authBtns { display: flex; gap: 10px; align-items: center; }
+.modelPick select { min-width: 210px; }
 
 .header h1 {
   margin: 0 0 8px;

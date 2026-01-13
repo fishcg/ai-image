@@ -61,6 +61,17 @@ docker run --name ai-image  -d -p 7993:7993 -v ./config.js:/home/www/ai-image/co
 - `DASHSCOPE_API_KEY`：DashScope API Key
 - `REGISTRATION_CODE`：注册需要的注册码（支持多个，英文逗号分隔，如：`codeA,codeB`）
 
+### 可选（Google 模型）
+
+UI 可切换到 `Google Nano banana pro`（通过 NanoAI 网关）。
+
+- `NANOAI_API_KEY`（必需）
+- `NANOAI_API_URL`（可选，默认 `https://bapi.nanoai.cn/api/v1/images/gemini3pro`）
+- `NANOAI_MODEL`（可选，默认 `gemini-3-pro-image-preview`）
+- `NANOAI_IMAGE_SIZE`（可选，默认 `2K`）
+- `NANOAI_IMAGE_SIZE_HD`（可选，默认 `4K`，勾选超清时使用）
+- `NANOAI_TIMEOUT`（ms，可选）
+
 ### 可选（DashScope）
 
 - `DASHSCOPE_URL`
