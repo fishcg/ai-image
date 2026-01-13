@@ -78,7 +78,10 @@ async function generate({
 
   const prompt = String(parsed?.prompt || '').trim();
   const nRaw = Number(parsed?.n);
-  const n = Number.isFinite(nRaw) ? Math.max(1, Math.min(6, Math.floor(nRaw))) : 2;
+  const isNanoModel = modelId === 'google-nano-banana-pro';
+  const maxN = isNanoModel ? 1 : 6;
+  const defaultN = isNanoModel ? 1 : 2;
+  const n = Number.isFinite(nRaw) ? Math.max(1, Math.min(maxN, Math.floor(nRaw))) : defaultN;
   const images = Array.isArray(parsed?.images) ? parsed.images : [];
   const hd = Boolean(parsed?.hd);
 

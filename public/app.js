@@ -104,6 +104,11 @@ let currentQuota = null;
 let selectedFiles = [];
 const selectedPresets = new Set();
 const MODEL_STORAGE_KEY = 'ai-image:modelId';
+const NANO_MODEL_IDS = new Set(['google-nano-banana-pro']);
+
+function isNanoModel(modelId) {
+  return NANO_MODEL_IDS.has(String(modelId || ''));
+}
 
 function setStatus(text, type = 'info') {
   const el = $('status');
@@ -258,6 +263,27 @@ function clampInt(value, min, max, fallback) {
   return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
+function syncModelConstraints() {
+  const modelId = String($('modelId')?.value || 'dashscope');
+  const nInput = $('n');
+  const nHint = $('nHint');
+  if (!nInput) return;
+
+  if (isNanoModel(modelId)) {
+    nInput.min = '1';
+    nInput.max = '1';
+    nInput.value = '1';
+    nInput.disabled = true;
+    if (nHint) nHint.textContent = 'Nano 模型仅支持生成 1 张。';
+  } else {
+    nInput.min = '1';
+    nInput.max = '6';
+    nInput.disabled = false;
+    nInput.value = String(clampInt(nInput.value, 1, 6, 2));
+    if (nHint) nHint.textContent = '';
+  }
+}
+
 function getFaceStrength() {
   const el = $('faceStrength');
   return clampInt(el ? el.value : 3, 1, 5, 3);
@@ -306,10 +332,6 @@ function renderPreview(files) {
 }
 
 function renderResults(urls) {
-  if (urls === null) {
-    $('results').innerHTML = '<div class="hint">生成中...</div>';
-    return;
-  }
   const results = $('results');
   results.innerHTML = '';
 
@@ -318,28 +340,64 @@ function renderResults(urls) {
     return;
   }
 
+  for (const url of urls) results.appendChild(buildResultNode(url));
+}
+
+function buildResultNode(url) {
+  const wrap = document.createElement('div');
+  wrap.className = 'result';
+
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = 'output';
+  img.dataset.fullSrc = url;
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noreferrer';
+  a.textContent = '打开原图';
+
+  meta.appendChild(a);
+  wrap.appendChild(img);
+  wrap.appendChild(meta);
+  return wrap;
+}
+
+function setResultsLoading(loading) {
+  const results = $('results');
+  if (!results) return;
+
+  const existing = $('resultsLoading');
+  if (!loading) {
+    existing?.remove?.();
+    return;
+  }
+
+  if (existing) return;
+  const el = document.createElement('div');
+  el.id = 'resultsLoading';
+  el.className = 'hint';
+  el.textContent = '生成中...';
+  results.insertBefore(el, results.firstChild);
+}
+
+function prependResults(urls) {
+  const results = $('results');
+  if (!results) return;
+  if (!urls || urls.length === 0) return;
+
+  const emptyHint = results.querySelector('.hint');
+  if (emptyHint && emptyHint.id !== 'resultsLoading') emptyHint.remove();
+
+  const loadingEl = $('resultsLoading');
+  const anchor = loadingEl ? loadingEl.nextSibling : results.firstChild;
+
   for (const url of urls) {
-    const wrap = document.createElement('div');
-    wrap.className = 'result';
-
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = 'output';
-    img.dataset.fullSrc = url;
-
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.target = '_blank';
-    a.rel = 'noreferrer';
-    a.textContent = '打开原图';
-
-    meta.appendChild(a);
-    wrap.appendChild(img);
-    wrap.appendChild(meta);
-    results.appendChild(wrap);
+    results.insertBefore(buildResultNode(url), anchor);
   }
 }
 
@@ -388,13 +446,16 @@ async function handleSubmit() {
     prompt = `${prompt}\n${faceSnippet}`.trim();
   }
 
-  const n = clampInt($('n').value, 1, 6, 2);
+  const modelId = String($('modelId')?.value || 'dashscope');
+  const maxN = isNanoModel(modelId) ? 1 : 6;
+  const defaultN = isNanoModel(modelId) ? 1 : 2;
+  const n = clampInt($('n')?.value, 1, maxN, defaultN);
 
   $('submit').disabled = true;
   $('submit').classList.add('loading');
   $('clear').disabled = true;
   setStatus('生成中，请等待…');
-  renderResults(null);
+  setResultsLoading(true);
 
   try {
     const images = [];
@@ -408,7 +469,6 @@ async function handleSubmit() {
     const orderHint = buildOrderHint(files, baseIndex);
     const finalPrompt = orderHint ? `${orderHint}\n\n${prompt}` : prompt;
     const hd = Boolean($('hd')?.checked);
-    const modelId = String($('modelId')?.value || 'dashscope');
 
     const resp = await fetch('/api/generate', {
       method: 'POST',
@@ -422,10 +482,12 @@ async function handleSubmit() {
       throw new Error(msg);
     }
 
-    renderResults(data.outputImageUrls || []);
+    setResultsLoading(false);
+    prependResults(data.outputImageUrls || []);
     if (data.quota) setAuthUi({ user: currentUser, quota: data.quota });
     setStatus(`完成：生成 ${((data.outputImageUrls || []).length)} 张图片。`);
   } catch (err) {
+    setResultsLoading(false);
     setStatus(err?.message || String(err), 'error');
   } finally {
     $('submit').disabled = !currentUser || (currentQuota && currentQuota.remaining <= 0);
@@ -446,6 +508,7 @@ function handleClear() {
   selectedPresets.clear();
   syncPresetUi();
   syncPromptWithSelectedPresets();
+  syncModelConstraints();
   setStatus('');
 }
 
@@ -527,8 +590,10 @@ function init() {
     if (saved) modelSelect.value = saved;
     modelSelect.addEventListener('change', () => {
       localStorage.setItem(MODEL_STORAGE_KEY, String(modelSelect.value || 'dashscope'));
+      syncModelConstraints();
     });
   }
+  syncModelConstraints();
 
   for (const btn of document.querySelectorAll('[data-close-modal]')) {
     btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));

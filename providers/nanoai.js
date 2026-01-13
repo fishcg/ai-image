@@ -1,6 +1,5 @@
 const { ProviderError } = require('./errors');
 const { buildAspectRatio } = require('../lib/image');
-const { UploadFile } = require('../lib/OSS.js');
 
 // 定义支持的宽高比
 const ALLOWED_ASPECT_RATIOS = [
@@ -39,80 +38,44 @@ function pickClosestAspectRatio(dim) {
   return best;
 }
 
-// 提取 Gemini 格式响应中的图片
-// 响应可能是 Base64 (inlineData) 或 URL (text)
-async function extractGeminiImages(data) {
-  const urls = [];
-
-  if (data?.candidates && Array.isArray(data.candidates)) {
-    for (const candidate of data.candidates) {
-      if (candidate?.content?.parts && Array.isArray(candidate.content.parts)) {
-        for (const part of candidate.content.parts) {
-          // 1. 检查 Base64 图片
-          if (part.inlineData && part.inlineData.data) {
-            const base64Data = part.inlineData.data;
-            const buffer = Buffer.from(base64Data, 'base64');
-            const mimeType = part.inlineData.mime_type || 'image/jpeg';
-            const extension = mimeType.split('/')[1] || 'jpg';
-            const targetObjectKey = `images/${new Date().toISOString().slice(0, 10)}/${Date.now()}-${Math.random().toString(36).substring(2, 10)}.${extension}`;
-            const url = await UploadFile(targetObjectKey, buffer, { mime: mimeType });
-            urls.push(url);
-          }
-          // 2. 检查 Text 中的 URL (NewAPI 经常在 text 里直接返回链接)
-          else if (part.text && /^https?:\/\//.test(part.text)) {
-            urls.push(part.text);
-          }
-        }
-      }
+async function extractNanoAiDrawImageUrls(data) {
+  if (data && data.code === 200 && data.data) {
+    const url = data.data.url || data.data.image_url;
+    if (url) {
+      return [url];
     }
   }
-
-  // 备用：检查是否有直接的 url 字段 (NewAPI 特有情况)
-  if (data?.url) urls.push(data.url);
-  if (data?.data && Array.isArray(data.data)) {
-    data.data.forEach(item => {
-      if (item.url) urls.push(item.url);
-    });
-  }
-
-  return urls;
+  return [];
 }
 
 async function generate({ axios, nanoai, env, prompt, n, hd, uploadedUrls, baseDim, timeoutMs }) {
   // 1. 获取 API Key (支持多种环境变量命名)
-  const apiKey = nanoai?.apiKey;
-
+  const apiKey = env.NANOAI_API_KEY || nanoai?.apiKey;
   if (!apiKey) {
     throw new ProviderError('Missing API Key', { statusCode: 500, payload: { error: 'Missing API Key' } });
   }
-  const apiUrl = nanoai.apiUrl;
-  // 3. 准备参数
-  const aspect_ratio = pickClosestAspectRatio(baseDim);
-  // 简单的分辨率映射，HD 对应较高分辨率，普通对应较低
-  // 注意：imageSize 具体支持的值取决于 newapi 文档，这里假设支持 standard/hd 或 1024x1024 格式
-  // 如果报错，可以尝试改为 "1024x1024" 或 null
-  const image_size = hd ? "1024x1024" : "512x512";
 
-  // 4. 构建 Payload (严格按照你提供的 fetch body 结构)
+  // 2. 设置 API 地址
+  const apiUrl = env.NANOAI_API_URL || nanoai?.apiUrl || 'https://bapi.nanoai.cn/api/v1/images/gemini3pro';
+
+  // 3. 准备 Payload
+  const model = env.NANOAI_MODEL || nanoai?.model || 'gemini-3-pro-image-preview';
+  // 默认普通画质 1K，高清 2K (或者根据 env 配置)
+  const imageSize = hd
+    ? (env.NANOAI_IMAGE_SIZE_HD || nanoai?.imageSizeHd || '2K')
+    : (env.NANOAI_IMAGE_SIZE || nanoai?.imageSize || '1K');
+  
+  const aspectRatio = pickClosestAspectRatio(baseDim);
+
   const payload = {
-    contents: [
-      {
-        parts: [
-          { text: prompt } // 将提示词放入 parts
-        ]
-      }
-    ],
-    generationConfig: {
-      responseModalities: [
-        "IMAGE" // 通常图生图或文生图这里是 IMAGE
-      ],
-      imageConfig: {
-        aspectRatio: aspect_ratio,
-        imageSize: image_size
-      }
-    }
+    model,
+    prompt: prompt,
+    stream: false,
+    image_size: imageSize,
+    aspect_ratio: aspectRatio,
+    reference_images: uploadedUrls || [],
+    response_format: 'url'
   };
-
   const requestConfig = {
     headers: {
       'Content-Type': 'application/json',
@@ -122,23 +85,22 @@ async function generate({ axios, nanoai, env, prompt, n, hd, uploadedUrls, baseD
   };
 
   try {
-    // 5. 发起请求
+    // 4. 发起请求
     const response = await axios.post(apiUrl, payload, requestConfig);
     const data = response.data;
 
-    // 6. 错误处理
-    if (data.error) {
-      throw new ProviderError(`API Error: ${data.error.message}`, {
-        statusCode: data.error.code || 500,
-        payload: { error: data.error.message, details: data.error },
+    // 5. 错误处理
+    if (data.code !== 200) {
+      throw new ProviderError(`API Error: ${data.message || 'Unknown error'}`, {
+        statusCode: data.code || 500,
+        payload: { error: data.message, details: data },
       });
     }
 
-    // 7. 提取结果
-    const outputImageUrls = await extractGeminiImages(data);
+    // 6. 提取结果
+    const outputImageUrls = await extractNanoAiDrawImageUrls(data);
 
     if (outputImageUrls.length === 0) {
-      // 如果没有提取到图片，尝试打印原始数据以便调试
       throw new ProviderError('No images returned', {
         statusCode: 500,
         payload: { raw: data, sentPayload: payload }
