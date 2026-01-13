@@ -81,7 +81,7 @@ async function generate({ axios, nanoai, env, prompt, n, hd, uploadedUrls, baseD
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}` // Bearer 认证
     },
-    timeout: 240000// timeoutMs,
+    timeout: 300000// timeoutMs,
   };
 
   try {
