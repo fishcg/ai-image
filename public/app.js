@@ -105,6 +105,8 @@ let selectedFiles = [];
 const selectedPresets = new Set();
 const MODEL_STORAGE_KEY = 'ai-image:modelId';
 const NANO_MODEL_IDS = new Set(['google-nano-banana-pro']);
+let modalGallery = null;
+let modalDrag = null;
 
 function isNanoModel(modelId) {
   return NANO_MODEL_IDS.has(String(modelId || ''));
@@ -138,15 +140,191 @@ function setFormError(id, message) {
   el.hidden = !text;
 }
 
-function openImageViewer({ src, title }) {
+function setModalImage({ src, title, originalSrc, mode = 'new' }) {
   const img = $('imageModalImg');
   const a = $('imageModalOpen');
-  if (!img || !a) return;
-  img.src = src;
+  const toggleBtn = $('toggleOriginal');
+  if (!img || !a) return false;
+  const newSrc = String(src || '');
+  const original = String(originalSrc || '');
+  const hasOriginal = Boolean(original) && original !== newSrc;
+
+  img.dataset.newSrc = newSrc;
+  img.dataset.originalSrc = hasOriginal ? original : '';
+  const nextMode = mode === 'original' && hasOriginal ? 'original' : 'new';
+  img.dataset.mode = nextMode;
+  const nextSrc = nextMode === 'original' ? original : newSrc;
+  img.dataset.baseW = '';
+  img.dataset.baseH = '';
+  img.style.width = '';
+  img.style.height = '';
+  img.src = nextSrc;
   img.alt = title || 'preview';
-  a.href = src;
+  a.href = nextSrc;
+  if (toggleBtn) {
+    toggleBtn.hidden = !hasOriginal;
+    toggleBtn.setAttribute('aria-pressed', nextMode === 'original' ? 'true' : 'false');
+    toggleBtn.textContent = nextMode === 'original' ? '显示新图' : '显示原图';
+  }
   const t = $('imageTitle');
   if (t) t.textContent = title || '预览';
+  return true;
+}
+
+function syncModalNavButtons() {
+  const prevBtn = $('prevImage');
+  const nextBtn = $('nextImage');
+  if (!prevBtn || !nextBtn) return;
+
+  const count = modalGallery?.items?.length || 0;
+  const idx = clampInt(modalGallery?.index, 0, Math.max(0, count - 1), 0);
+
+  const show = count >= 2;
+  prevBtn.hidden = !show;
+  nextBtn.hidden = !show;
+  prevBtn.disabled = !show || idx <= 0;
+  nextBtn.disabled = !show || idx >= count - 1;
+}
+
+function getModalZoom() {
+  const el = $('zoomRange');
+  const percent = clampInt(el ? el.value : 100, 100, 300, 100);
+  return percent / 100;
+}
+
+function setModalZoom(percent) {
+  const el = $('zoomRange');
+  const label = $('zoomValue');
+  const p = clampInt(percent, 100, 300, 100);
+  if (el) el.value = String(p);
+  if (label) label.textContent = `${p}%`;
+  if (p <= 100) setModalPan(0, 0);
+}
+
+function getModalPan() {
+  const img = $('imageModalImg');
+  const x = Number(img?.dataset?.panX || '0');
+  const y = Number(img?.dataset?.panY || '0');
+  return {
+    x: Number.isFinite(x) ? x : 0,
+    y: Number.isFinite(y) ? y : 0,
+  };
+}
+
+function setModalPan(x, y) {
+  const img = $('imageModalImg');
+  if (!img) return;
+  img.dataset.panX = String(Math.round(Number(x) || 0));
+  img.dataset.panY = String(Math.round(Number(y) || 0));
+}
+
+function captureModalBaseSize() {
+  const viewer = document.querySelector('.imageViewer');
+  const img = $('imageModalImg');
+  if (!viewer || !img) return;
+
+  const prevTransform = img.style.transform;
+  const prevWidth = img.style.width;
+  const prevHeight = img.style.height;
+  img.style.transform = 'translate(0px, 0px)';
+  img.style.width = '';
+  img.style.height = '';
+  const rect = img.getBoundingClientRect();
+  img.style.transform = prevTransform;
+  img.style.width = prevWidth;
+  img.style.height = prevHeight;
+
+  img.dataset.baseW = String(Math.max(1, Math.round(rect.width || 0)));
+  img.dataset.baseH = String(Math.max(1, Math.round(rect.height || 0)));
+}
+
+function clampModalPan(x, y, zoom) {
+  const viewer = document.querySelector('.imageViewer');
+  const img = $('imageModalImg');
+  if (!viewer || !img) return { x, y };
+  const vw = viewer.clientWidth || 0;
+  const vh = viewer.clientHeight || 0;
+  const baseW = Number(img.dataset.baseW || '0');
+  const baseH = Number(img.dataset.baseH || '0');
+  if (!vw || !vh || !baseW || !baseH) return { x, y };
+
+  const scaledW = baseW * zoom;
+  const scaledH = baseH * zoom;
+  const maxX = Math.max(0, (scaledW - vw) / 2);
+  const maxY = Math.max(0, (scaledH - vh) / 2);
+
+  const cx = Math.max(-maxX, Math.min(maxX, x));
+  const cy = Math.max(-maxY, Math.min(maxY, y));
+  return { x: cx, y: cy };
+}
+
+function applyModalTransform() {
+  const img = $('imageModalImg');
+  if (!img) return;
+  const zoom = getModalZoom();
+  const { x, y } = getModalPan();
+
+  if (zoom <= 1) {
+    img.style.width = '';
+    img.style.height = '';
+    img.style.maxWidth = '';
+    img.style.maxHeight = '';
+    img.style.transform = 'translate(0px, 0px)';
+    img.style.cursor = '';
+    setModalPan(0, 0);
+    return;
+  }
+
+  const baseW = Number(img.dataset.baseW || '0');
+  const baseH = Number(img.dataset.baseH || '0');
+  if (!baseW || !baseH) {
+    captureModalBaseSize();
+  }
+
+  const bw = Number(img.dataset.baseW || '0');
+  const bh = Number(img.dataset.baseH || '0');
+  if (bw && bh) {
+    img.style.maxWidth = 'none';
+    img.style.maxHeight = 'none';
+    img.style.width = `${Math.max(1, Math.round(bw * zoom))}px`;
+    img.style.height = `${Math.max(1, Math.round(bh * zoom))}px`;
+  }
+
+  const clamped = clampModalPan(x, y, zoom);
+  if (clamped.x !== x || clamped.y !== y) setModalPan(clamped.x, clamped.y);
+  img.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
+  img.style.cursor = modalDrag ? 'grabbing' : 'grab';
+}
+
+function showModalGalleryIndex(index) {
+  const items = modalGallery?.items;
+  if (!Array.isArray(items) || items.length === 0) return;
+  const i = clampInt(index, 0, items.length - 1, 0);
+  modalGallery.index = i;
+
+  const img = $('imageModalImg');
+  const mode = img?.dataset?.mode === 'original' ? 'original' : 'new';
+  const item = items[i] || {};
+  setModalImage({ src: item.src, title: item.title, originalSrc: item.originalSrc, mode });
+  setModalPan(0, 0);
+  applyModalTransform();
+  syncModalNavButtons();
+}
+
+function openImageViewer({ src, title, originalSrc, gallery }) {
+  if (gallery && Array.isArray(gallery.items)) {
+    const idx = clampInt(gallery.index, 0, Math.max(0, gallery.items.length - 1), 0);
+    modalGallery = { items: gallery.items, index: idx };
+  } else {
+    modalGallery = null;
+  }
+
+  setModalImage({ src, title, originalSrc, mode: 'new' });
+  setModalZoom(100);
+  setModalPan(0, 0);
+  captureModalBaseSize();
+  applyModalTransform();
+  syncModalNavButtons();
   openModal('imageModal');
 }
 
@@ -343,7 +521,7 @@ function renderResults(urls) {
   for (const url of urls) results.appendChild(buildResultNode(url));
 }
 
-function buildResultNode(url) {
+function buildResultNode(url, { originalSrc } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'result';
 
@@ -351,6 +529,7 @@ function buildResultNode(url) {
   img.src = url;
   img.alt = 'output';
   img.dataset.fullSrc = url;
+  if (originalSrc) img.dataset.originalSrc = String(originalSrc);
 
   const meta = document.createElement('div');
   meta.className = 'meta';
@@ -385,7 +564,7 @@ function setResultsLoading(loading) {
   results.insertBefore(el, results.firstChild);
 }
 
-function prependResults(urls) {
+function prependResults(urls, { originalSrc } = {}) {
   const results = $('results');
   if (!results) return;
   if (!urls || urls.length === 0) return;
@@ -397,7 +576,7 @@ function prependResults(urls) {
   const anchor = loadingEl ? loadingEl.nextSibling : results.firstChild;
 
   for (const url of urls) {
-    results.insertBefore(buildResultNode(url), anchor);
+    results.insertBefore(buildResultNode(url, { originalSrc }), anchor);
   }
 }
 
@@ -465,6 +644,7 @@ async function handleSubmit() {
     }
 
     const baseIndex = clampInt($('baseIndex')?.value, 1, 3, 1) - 1;
+    const originalSrc = images[clampInt(baseIndex, 0, images.length - 1, 0)]?.dataUrl || '';
     const orderedImages = images.length >= 2 ? moveIndexToEnd(images, baseIndex) : images;
     const orderHint = buildOrderHint(files, baseIndex);
     const finalPrompt = orderHint ? `${orderHint}\n\n${prompt}` : prompt;
@@ -483,7 +663,7 @@ async function handleSubmit() {
     }
 
     setResultsLoading(false);
-    prependResults(data.outputImageUrls || []);
+    prependResults(data.outputImageUrls || [], { originalSrc });
     if (data.quota) setAuthUi({ user: currentUser, quota: data.quota });
     setStatus(`完成：生成 ${((data.outputImageUrls || []).length)} 张图片。`);
   } catch (err) {
@@ -556,14 +736,104 @@ function init() {
     const img = e.target?.closest?.('img');
     if (!img) return;
     const src = img.dataset.fullSrc || img.src;
-    openImageViewer({ src, title: img.alt || '预览' });
+    const imgs = Array.from($('preview')?.querySelectorAll?.('img') || []);
+    const items = imgs.map((el) => ({
+      src: el.dataset.fullSrc || el.src,
+      title: el.alt || '预览',
+      originalSrc: '',
+    }));
+    const index = Math.max(0, imgs.indexOf(img));
+    openImageViewer({ src, title: img.alt || '预览', gallery: { items, index } });
   });
 
   $('results')?.addEventListener('click', (e) => {
     const img = e.target?.closest?.('img');
     if (!img) return;
     const src = img.dataset.fullSrc || img.src;
-    openImageViewer({ src, title: '输出预览' });
+    const originalSrc = img.dataset.originalSrc || '';
+    const imgs = Array.from($('results')?.querySelectorAll?.('.result img') || []);
+    const items = imgs.map((el) => ({
+      src: el.dataset.fullSrc || el.src,
+      title: '输出预览',
+      originalSrc: el.dataset.originalSrc || '',
+    }));
+    const index = Math.max(0, imgs.indexOf(img));
+    openImageViewer({ src, title: '输出预览', originalSrc, gallery: { items, index } });
+  });
+
+  $('toggleOriginal')?.addEventListener('click', () => {
+    const img = $('imageModalImg');
+    const a = $('imageModalOpen');
+    const btn = $('toggleOriginal');
+    if (!img || !a || !btn) return;
+    const newSrc = String(img.dataset.newSrc || img.src || '');
+    const originalSrc = String(img.dataset.originalSrc || '');
+    if (!originalSrc) return;
+
+    const isShowingOriginal = img.dataset.mode === 'original';
+    const nextMode = isShowingOriginal ? 'new' : 'original';
+    img.dataset.mode = nextMode;
+    const nextSrc = nextMode === 'original' ? originalSrc : newSrc;
+    img.src = nextSrc;
+    a.href = nextSrc;
+    btn.setAttribute('aria-pressed', nextMode === 'original' ? 'true' : 'false');
+    btn.textContent = nextMode === 'original' ? '显示新图' : '显示原图';
+  });
+
+  const zoomRange = $('zoomRange');
+  if (zoomRange) {
+    zoomRange.addEventListener('input', () => {
+      const percent = clampInt(zoomRange.value, 100, 300, 100);
+      setModalZoom(percent);
+      applyModalTransform();
+    });
+  }
+
+  $('imageModalImg')?.addEventListener('load', () => {
+    captureModalBaseSize();
+    applyModalTransform();
+  });
+
+  $('imageModalImg')?.addEventListener('pointerdown', (e) => {
+    const zoom = getModalZoom();
+    if (zoom <= 1) return;
+    const img = $('imageModalImg');
+    if (!img) return;
+    e.preventDefault();
+    const { x, y } = getModalPan();
+    modalDrag = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, baseX: x, baseY: y };
+    try {
+      img.setPointerCapture(e.pointerId);
+    } catch {}
+    applyModalTransform();
+  });
+  $('imageModalImg')?.addEventListener('pointermove', (e) => {
+    if (!modalDrag || modalDrag.pointerId !== e.pointerId) return;
+    const zoom = getModalZoom();
+    if (zoom <= 1) return;
+    const dx = e.clientX - modalDrag.startX;
+    const dy = e.clientY - modalDrag.startY;
+    const nextX = modalDrag.baseX + dx;
+    const nextY = modalDrag.baseY + dy;
+    const clamped = clampModalPan(nextX, nextY, zoom);
+    setModalPan(clamped.x, clamped.y);
+    applyModalTransform();
+  });
+  const endDrag = (e) => {
+    if (!modalDrag || modalDrag.pointerId !== e.pointerId) return;
+    modalDrag = null;
+    applyModalTransform();
+  };
+  $('imageModalImg')?.addEventListener('pointerup', endDrag);
+  $('imageModalImg')?.addEventListener('pointercancel', endDrag);
+
+  $('prevImage')?.addEventListener('click', () => {
+    if (!modalGallery) return;
+    showModalGalleryIndex((modalGallery.index || 0) - 1);
+  });
+  $('nextImage')?.addEventListener('click', () => {
+    if (!modalGallery) return;
+    showModalGalleryIndex((modalGallery.index || 0) + 1);
   });
 
   $('submit').addEventListener('click', handleSubmit);
@@ -627,6 +897,11 @@ function init() {
 
   syncPresetUi();
   refreshMe().catch(() => setAuthUi({ user: null, quota: null }));
+
+  window.addEventListener('resize', () => {
+    captureModalBaseSize();
+    applyModalTransform();
+  });
 }
 
 init();

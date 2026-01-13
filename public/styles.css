@@ -426,17 +426,37 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   justify-content: flex-end;
   gap: 10px;
 }
+.modalTools {
+  margin-right: auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+.modalTools input[type="range"] { width: 180px; }
 
 .imageModalCard { width: min(980px, 100%); }
-.imageViewer { padding: 12px; }
+.imageViewer {
+  padding: 12px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: min(72vh, 720px);
+}
 .imageViewer img {
-  width: 100%;
-  max-height: 72vh;
-  object-fit: contain;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   display: block;
   background: rgba(0,0,0,0.25);
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.08);
+  will-change: transform;
+  user-select: none;
+  touch-action: none;
 }
 
 .formError {
