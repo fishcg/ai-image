@@ -103,6 +103,7 @@ select {
 .quota.bad { color: var(--danger); }
 
 [data-auth="required"][hidden] { display: none !important; }
+.guest[hidden] { display: none !important; }
 .modal[hidden] { display: none !important; }
 
 .label {
@@ -223,8 +224,37 @@ textarea { resize: vertical; min-height: 110px; }
   border-radius: 999px;
   padding: 8px 12px;
   cursor: pointer;
+  position: relative;
 }
 .chip:hover { border-color: rgba(255,255,255,0.22); }
+.chip.selected {
+  border-color: rgba(255,255,255,0.28);
+  background: linear-gradient(135deg, rgba(255, 92, 156, 0.22), rgba(112, 174, 255, 0.14));
+}
+.chip.selected::after {
+  content: "✓";
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.25);
+  color: rgba(255,255,255,0.85);
+  font-size: 12px;
+}
+
+.guest {
+  margin-top: 18px;
+  padding: 18px;
+  border-color: rgba(255,255,255,0.14);
+  background:
+    radial-gradient(900px 420px at 20% 20%, rgba(255, 92, 156, 0.14), transparent 55%),
+    radial-gradient(900px 420px at 80% 30%, rgba(112, 174, 255, 0.12), transparent 55%),
+    rgba(255,255,255,0.04);
+}
+.guestInner { text-align: center; padding: 10px 4px; }
+.guestTitle { font-weight: 800; font-size: 18px; letter-spacing: 0.2px; }
+.guestDesc { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.guestActions { display: inline-flex; gap: 12px; margin-top: 14px; }
 
 .effectGroups { display: grid; gap: 14px; margin-top: 12px; }
 .effectGroup {

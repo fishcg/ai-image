@@ -102,6 +102,7 @@ function $(id) {
 let currentUser = null;
 let currentQuota = null;
 let selectedFiles = [];
+const selectedPresets = new Set();
 
 function setStatus(text, type = 'info') {
   const el = $('status');
@@ -150,6 +151,9 @@ function setAuthUi({ user, quota }) {
   for (const section of document.querySelectorAll('[data-auth="required"]')) {
     section.hidden = !currentUser;
   }
+  for (const section of document.querySelectorAll('[data-auth="guest"]')) {
+    section.hidden = Boolean(currentUser);
+  }
 
   const me = $('me');
   const quotaEl = $('quota');
@@ -169,6 +173,9 @@ function setAuthUi({ user, quota }) {
     $('preview').innerHTML = '';
     $('results').innerHTML = '';
     updateFileInfo([]);
+    selectedPresets.clear();
+    syncPresetUi();
+    $('prompt').value = '';
     return;
   }
 
@@ -434,34 +441,32 @@ function handleClear() {
   updateFileInfo([]);
   $('baseIndexWrap').hidden = true;
   $('results').innerHTML = '';
+  selectedPresets.clear();
+  syncPresetUi();
+  syncPromptWithSelectedPresets();
   setStatus('');
 }
 
 function appendPreset(key) {
   const snippet = presets[key];
   if (!snippet) return;
-  const el = $('prompt');
-  const current = el.value.trim();
-  const next = current ? `${current}\n${snippet}` : snippet;
-  el.value = next;
-  el.focus();
-  try {
-    el.setSelectionRange(el.value.length, el.value.length);
-    el.scrollTop = el.scrollHeight;
-  } catch {}
-  if (!$('submit')?.classList.contains('loading')) {
-    const msg = `已追加：${key}`;
-    setStatus(msg);
-    setTimeout(() => {
-      if ($('status')?.textContent === msg) setStatus('');
-    }, 1200);
+  if (selectedPresets.has(key)) {
+    selectedPresets.delete(key);
+    removePresetFromPrompt(snippet);
+  } else {
+    selectedPresets.add(key);
+    addPresetToPrompt(snippet);
   }
+  syncPresetUi();
 }
 
 function init() {
   $('submit').disabled = true;
   for (const section of document.querySelectorAll('[data-auth="required"]')) {
     section.hidden = true;
+  }
+  for (const section of document.querySelectorAll('[data-auth="guest"]')) {
+    section.hidden = false;
   }
 
   const faceStrength = $('faceStrength');
@@ -511,6 +516,8 @@ function init() {
   $('doLogin').addEventListener('click', () => handleLogin());
   $('doRegister').addEventListener('click', () => handleRegister());
   $('logout').addEventListener('click', () => handleLogout());
+  $('guestLogin')?.addEventListener('click', () => $('openLogin')?.click());
+  $('guestRegister')?.addEventListener('click', () => $('openRegister')?.click());
 
   for (const btn of document.querySelectorAll('[data-close-modal]')) {
     btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
@@ -542,6 +549,7 @@ function init() {
     if (selectedFiles.length) renderPreview(selectedFiles);
   });
 
+  syncPresetUi();
   refreshMe().catch(() => setAuthUi({ user: null, quota: null }));
 }
 
@@ -584,4 +592,64 @@ function buildOrderHint(files, baseIndex) {
   const base = clampInt(baseIndex, 0, files.length - 1, 0) + 1;
   const pairs = files.map((f, idx) => `${idx + 1}=${f.name}`);
   return `输入图片编号（从左到右）：${pairs.join('，')}。底图（被修改）= 第${base}张。`;
+}
+
+function syncPresetUi() {
+  for (const btn of document.querySelectorAll('button[data-prompt]')) {
+    const key = btn.dataset.prompt;
+    btn.classList.toggle('selected', selectedPresets.has(key));
+  }
+}
+
+function normalizeNewlines(text) {
+  return String(text || '').replace(/\n{3,}/g, '\n\n');
+}
+
+function addPresetToPrompt(snippet) {
+  const el = $('prompt');
+  if (!el) return;
+  const base = el.value.trimEnd();
+  const next = base ? `${base}\n${snippet}` : snippet;
+  el.value = normalizeNewlines(next).trim();
+  el.focus();
+  try {
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.scrollTop = el.scrollHeight;
+  } catch {}
+}
+
+function removePresetFromPrompt(snippet) {
+  const el = $('prompt');
+  if (!el) return;
+  let text = String(el.value || '');
+  const target = String(snippet || '');
+  if (!target) return;
+
+  let idx = text.indexOf(target);
+  while (idx !== -1) {
+    const before = text.slice(0, idx);
+    const after = text.slice(idx + target.length);
+
+    let newBefore = before;
+    let newAfter = after;
+
+    // remove one adjacent newline around the snippet to keep layout tight
+    if (newBefore.endsWith('\n') && newAfter.startsWith('\n')) {
+      newBefore = newBefore.slice(0, -1);
+    } else if (newBefore.endsWith('\n')) {
+      newBefore = newBefore.slice(0, -1);
+    } else if (newAfter.startsWith('\n')) {
+      newAfter = newAfter.slice(1);
+    }
+
+    text = `${newBefore}${newAfter}`;
+    idx = text.indexOf(target);
+  }
+
+  el.value = normalizeNewlines(text).trim();
+  el.focus();
+  try {
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.scrollTop = el.scrollHeight;
+  } catch {}
 }
