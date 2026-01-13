@@ -34,8 +34,9 @@ function getDbConfig() {
 
 const pool = getPool(getDbConfig());
 const publicDir = path.join(__dirname, 'public');
-const providerTimeoutMsDashScope = Number(process.env.DASHSCOPE_TIMEOUT || ai?.TIMEOUT || 120000);
-const providerTimeoutMsNanoAi = Number(process.env.NANOAI_TIMEOUT || nanoai?.timeout || 120000);
+const providerTimeoutMsDashScope = Number(process.env.DASHSCOPE_TIMEOUT || ai?.TIMEOUT || 5 * 60 * 1000);
+const providerTimeoutMsNanoAi = Number(process.env.NANOAI_TIMEOUT || nanoai?.timeout || 5 * 60 * 1000);
+const generateRequestTimeoutMs = Number(process.env.GENERATE_REQUEST_TIMEOUT || 5 * 60 * 1000);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -57,6 +58,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (req.method === 'POST' && url.pathname === '/api/generate') {
+    req.setTimeout(generateRequestTimeoutMs);
+    res.setTimeout(generateRequestTimeoutMs);
     await generateRoutes.generate({
       req,
       res,
@@ -79,6 +82,9 @@ const server = http.createServer(async (req, res) => {
 
   serveStatic({ req, res, publicDir });
 });
+
+server.requestTimeout = generateRequestTimeoutMs;
+server.headersTimeout = Math.max(server.headersTimeout, generateRequestTimeoutMs + 10_000);
 
 server.listen(PORT, () => {
   // eslint-disable-next-line no-console
