@@ -48,7 +48,12 @@ async function extractNanoAiDrawImageUrls(data) {
   return [];
 }
 
-async function generate({ axios, nanoai, env, prompt, n, hd, uploadedUrls, baseDim, timeoutMs }) {
+function normalizeAspectRatio(aspectRatio) {
+  const r = String(aspectRatio || '').trim();
+  return ALLOWED_ASPECT_RATIOS.includes(r) ? r : null;
+}
+
+async function generate({ axios, nanoai, env, prompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
   // 1. 获取 API Key (支持多种环境变量命名)
   const apiKey = env.NANOAI_API_KEY || nanoai?.apiKey;
   if (!apiKey) {
@@ -65,14 +70,14 @@ async function generate({ axios, nanoai, env, prompt, n, hd, uploadedUrls, baseD
     ? (env.NANOAI_IMAGE_SIZE_HD || nanoai?.imageSizeHd || '2K')
     : (env.NANOAI_IMAGE_SIZE || nanoai?.imageSize || '1K');
   
-  const aspectRatio = pickClosestAspectRatio(baseDim);
+  const finalAspectRatio = normalizeAspectRatio(aspectRatio) || pickClosestAspectRatio(baseDim);
 
   const payload = {
     model,
     prompt: prompt,
     stream: false,
     image_size: imageSize,
-    aspect_ratio: aspectRatio,
+    aspect_ratio: finalAspectRatio,
     reference_images: uploadedUrls || [],
     response_format: 'url'
   };

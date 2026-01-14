@@ -46,21 +46,72 @@ function buildDashScopeSize(dim, { maxSide = 2048, multiple = 64, forceMaxSide =
 }
 
 function extractOutputImageUrls(dashscopeResponse) {
-  const content = dashscopeResponse?.output?.choices?.[0]?.message?.content;
-  if (!Array.isArray(content)) return [];
-  return content.filter((x) => x && typeof x.image === 'string').map((x) => x.image);
+  const choices = dashscopeResponse?.output?.choices;
+  if (!Array.isArray(choices)) return [];
+  const urls = [];
+  for (const choice of choices) {
+    const content = choice?.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content) {
+      if (part && typeof part.image === 'string') urls.push(part.image);
+    }
+  }
+  return urls;
 }
 
-async function generate({ axios, ai, env, prompt, n, hd, uploadedUrls, baseDim, timeoutMs }) {
+function normalizeAspectRatio(aspectRatio) {
+  const r = String(aspectRatio || '').trim();
+  const allowed = new Set(['1:1', '4:3', '3:4', '16:9', '9:16']);
+  return allowed.has(r) ? r : null;
+}
+
+function sizeFromAspectRatioEdit(aspectRatio, hd) {
+  const r = normalizeAspectRatio(aspectRatio);
+  if (!r) return null;
+  const h = hd ? 2048 : 1024;
+  const presets = {
+    '1:1': { w: h, h },
+    '4:3': { w: h, h: Math.round((h * 3) / 4) },
+    '3:4': { w: Math.round((h * 3) / 4), h },
+    '16:9': { w: h, h: Math.round((h * 9) / 16) },
+    '9:16': { w: Math.round((h * 9) / 16), h },
+  };
+  const dim = presets[r];
+  if (!dim?.w || !dim?.h) return null;
+  const w = Math.max(64, Math.round(dim.w / 64) * 64);
+  const hh = Math.max(64, Math.round(dim.h / 64) * 64);
+  return `${w}*${hh}`;
+}
+
+function sizeForWanT2i(aspectRatio) {
+  const r = normalizeAspectRatio(aspectRatio) || '1:1';
+  const map = {
+    '1:1': '1280*1280',
+    '3:4': '1104*1472',
+    '4:3': '1472*1104',
+    '9:16': '960*1696',
+    '16:9': '1696*960',
+  };
+  return map[r] || '1280*1280';
+}
+
+async function generate({ axios, ai, env, mode, prompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
   const apiKey = env.DASHSCOPE_API_KEY || ai?.API_KEY;
-  const apiUrl = env.DASHSCOPE_URL || ai?.URL;
-  const model = env.DASHSCOPE_MODEL || ai?.MODEL || 'qwen-image-edit-plus';
+  const isTxt2Img = String(mode || 'img2img') === 'txt2img';
+  const apiUrl = (isTxt2Img ? (env.DASHSCOPE_T2I_URL || ai?.T2I_URL) : null) || env.DASHSCOPE_URL || ai?.URL;
+  const model = isTxt2Img
+    ? (env.DASHSCOPE_T2I_MODEL || ai?.T2I_MODEL || 'wan2.6-t2i')
+    : (env.DASHSCOPE_MODEL || ai?.MODEL || 'qwen-image-edit-plus');
 
   if (!apiKey) {
     throw new ProviderError('Missing DASHSCOPE_API_KEY', { statusCode: 500, payload: { error: 'Missing DASHSCOPE_API_KEY' } });
   }
 
-  const size = baseDim ? buildDashScopeSize(baseDim, { maxSide: 2048, multiple: 64, forceMaxSide: hd }) : (hd ? '2048*2048' : null);
+  const size = isTxt2Img
+    ? sizeForWanT2i(aspectRatio)
+    : (baseDim
+        ? buildDashScopeSize(baseDim, { maxSide: 2048, multiple: 64, forceMaxSide: hd })
+        : (sizeFromAspectRatioEdit(aspectRatio, hd) || (hd ? '2048*2048' : null)));
 
   const payload = {
     model,
@@ -68,14 +119,14 @@ async function generate({ axios, ai, env, prompt, n, hd, uploadedUrls, baseDim, 
       messages: [
         {
           role: 'user',
-          content: [...uploadedUrls.map((url) => ({ image: url })), { text: prompt }],
+          content: [...(isTxt2Img ? [] : uploadedUrls.map((url) => ({ image: url }))), { text: prompt }],
         },
       ],
     },
     parameters: {
       n,
       watermark: false,
-      negative_prompt: '低质量',
+      negative_prompt: isTxt2Img ? '' : '低质量',
       prompt_extend: true,
       ...(size ? { size } : {}),
     },

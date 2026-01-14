@@ -107,7 +107,9 @@ let currentUser = null;
 let currentQuota = null;
 let selectedFiles = [];
 const selectedPresets = new Set();
+const selectedPresetsText = new Set();
 const MODEL_STORAGE_KEY = 'ai-image:modelId';
+const TAB_STORAGE_KEY = 'ai-image:tab';
 const NANO_MODEL_IDS = new Set(['google-nano-banana-pro']);
 let modalGallery = null;
 let modalDrag = null;
@@ -137,6 +139,13 @@ function getSelectedFileByKey(key) {
 
 function setStatus(text, type = 'info') {
   const el = $('status');
+  el.textContent = text || '';
+  el.classList.toggle('error', type === 'error');
+}
+
+function setStatusText(text, type = 'info') {
+  const el = $('statusText');
+  if (!el) return;
   el.textContent = text || '';
   el.classList.toggle('error', type === 'error');
 }
@@ -713,6 +722,7 @@ function setAuthUi({ user, quota }) {
   const openRegisterBtn = $('openRegister');
   const logoutBtn = $('logout');
   const submitBtn = $('submit');
+  const submitTextBtn = $('submitText');
 
   if (!currentUser) {
     me.textContent = '未登录';
@@ -722,12 +732,21 @@ function setAuthUi({ user, quota }) {
     openRegisterBtn.style.display = '';
     logoutBtn.style.display = 'none';
     submitBtn.disabled = true;
+    if (submitTextBtn) submitTextBtn.disabled = true;
+    setActiveTab('img2img', { persist: false });
     $('preview').innerHTML = '';
     $('results').innerHTML = '';
+    $('resultsText')?.replaceChildren?.();
     updateFileInfo([]);
     selectedPresets.clear();
+    selectedPresetsText.clear();
     syncPresetUi();
+    syncPresetUiText();
     $('prompt').value = '';
+    const promptText = $('promptText');
+    if (promptText) promptText.value = '';
+    setStatus('');
+    setStatusText('');
     return;
   }
 
@@ -740,10 +759,12 @@ function setAuthUi({ user, quota }) {
     quotaEl.textContent = `本月剩余：${currentQuota.remaining}/${currentQuota.limit}（${currentQuota.month}）`;
     quotaEl.classList.toggle('bad', currentQuota.remaining <= 0);
     submitBtn.disabled = currentQuota.remaining <= 0;
+    if (submitTextBtn) submitTextBtn.disabled = currentQuota.remaining <= 0;
   } else {
     quotaEl.textContent = '';
     quotaEl.classList.remove('bad');
     submitBtn.disabled = false;
+    if (submitTextBtn) submitTextBtn.disabled = false;
   }
 }
 
@@ -810,24 +831,29 @@ function clampInt(value, min, max, fallback) {
 }
 
 function syncModelConstraints() {
-  const modelId = String($('modelId')?.value || 'dashscope');
-  const nInput = $('n');
-  const nHint = $('nHint');
-  if (!nInput) return;
+  const syncOne = ({ modelIdId, nId, nHintId }) => {
+    const modelId = String($(modelIdId)?.value || 'dashscope');
+    const nInput = $(nId);
+    const nHint = $(nHintId);
+    if (!nInput) return;
 
-  if (isNanoModel(modelId)) {
-    nInput.min = '1';
-    nInput.max = '1';
-    nInput.value = '1';
-    nInput.disabled = true;
-    if (nHint) nHint.textContent = 'Nano 模型仅支持生成 1 张。';
-  } else {
-    nInput.min = '1';
-    nInput.max = '6';
-    nInput.disabled = false;
-    nInput.value = String(clampInt(nInput.value, 1, 6, 2));
-    if (nHint) nHint.textContent = '';
-  }
+    if (isNanoModel(modelId)) {
+      nInput.min = '1';
+      nInput.max = '1';
+      nInput.value = '1';
+      nInput.disabled = true;
+      if (nHint) nHint.textContent = 'Nano 模型仅支持生成 1 张。';
+    } else {
+      nInput.min = '1';
+      nInput.max = '6';
+      nInput.disabled = false;
+      nInput.value = String(clampInt(nInput.value, 1, 6, 2));
+      if (nHint) nHint.textContent = '';
+    }
+  };
+
+  syncOne({ modelIdId: 'modelId', nId: 'n', nHintId: 'nHint' });
+  syncOne({ modelIdId: 'modelIdText', nId: 'nText', nHintId: 'nHintText' });
 }
 
 function getFaceStrength() {
@@ -951,6 +977,40 @@ function prependResults(urls, { originalSrc } = {}) {
   }
 }
 
+function setResultsLoadingText(loading) {
+  const results = $('resultsText');
+  if (!results) return;
+
+  const existing = $('resultsTextLoading');
+  if (!loading) {
+    existing?.remove?.();
+    return;
+  }
+
+  if (existing) return;
+  const el = document.createElement('div');
+  el.id = 'resultsTextLoading';
+  el.className = 'hint';
+  el.textContent = '生成中...';
+  results.insertBefore(el, results.firstChild);
+}
+
+function prependResultsText(urls) {
+  const results = $('resultsText');
+  if (!results) return;
+  if (!urls || urls.length === 0) return;
+
+  const emptyHint = results.querySelector('.hint');
+  if (emptyHint && emptyHint.id !== 'resultsTextLoading') emptyHint.remove();
+
+  const loadingEl = $('resultsTextLoading');
+  const anchor = loadingEl ? loadingEl.nextSibling : results.firstChild;
+
+  for (const url of urls) {
+    results.insertBefore(buildResultNode(url), anchor);
+  }
+}
+
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1071,6 +1131,83 @@ async function handleSubmit() {
   }
 }
 
+async function handleSubmitText() {
+  let prompt = $('promptText')?.value?.trim?.() || '';
+  if (!prompt) {
+    setStatusText('请填写 prompt。', 'error');
+    return;
+  }
+
+  const modelId = String($('modelIdText')?.value || 'dashscope');
+  const maxN = isNanoModel(modelId) ? 1 : 6;
+  const defaultN = isNanoModel(modelId) ? 1 : 2;
+  const n = clampInt($('nText')?.value, 1, maxN, defaultN);
+  const hd = Boolean($('hdText')?.checked);
+  const aspectRatio = String($('aspectRatioText')?.value || '1:1');
+
+  const submitBtn = $('submitText');
+  const clearBtn = $('clearText');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.classList.add('loading');
+  }
+  if (clearBtn) clearBtn.disabled = true;
+
+  setStatusText('生成中，请等待…');
+  setResultsLoadingText(true);
+
+  try {
+    const resp = await fetch('/api/generate?async=1', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ images: [], prompt, n, hd, modelId, mode: 'txt2img', aspectRatio }),
+    });
+
+    const start = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const msg = start?.message ? `${start.error || 'Error'}: ${start.message}` : (start?.error || '请求失败');
+      throw new Error(msg);
+    }
+
+    const jobId = String(start?.jobId || '');
+    if (!jobId) throw new Error('Missing jobId');
+
+    const deadline = Date.now() + 6 * 60 * 1000;
+    let final = null;
+    while (Date.now() < deadline) {
+      const r = await fetch(`/api/generate?jobId=${encodeURIComponent(jobId)}`, { method: 'GET' });
+      const s = await r.json().catch(() => ({}));
+      if (s?.status === 'done') {
+        final = s?.result || null;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    if (!final) throw new Error('生成超时，请稍后重试。');
+    if (final.statusCode !== 200) {
+      const data = final.payload || {};
+      const msg = data?.message ? `${data.error || 'Error'}: ${data.message}` : (data?.error || '请求失败');
+      throw new Error(msg);
+    }
+
+    setResultsLoadingText(false);
+    const data = final.payload || {};
+    prependResultsText(data.outputImageUrls || []);
+    if (data.quota) setAuthUi({ user: currentUser, quota: data.quota });
+    setStatusText(`完成：生成 ${((data.outputImageUrls || []).length)} 张图片。`);
+  } catch (err) {
+    setResultsLoadingText(false);
+    setStatusText(err?.message || String(err), 'error');
+  } finally {
+    const disabled = !currentUser || (currentQuota && currentQuota.remaining <= 0);
+    if (submitBtn) {
+      submitBtn.disabled = disabled;
+      submitBtn.classList.remove('loading');
+    }
+    if (clearBtn) clearBtn.disabled = false;
+  }
+}
+
 function handleClear() {
   $('images').value = '';
   $('prompt').value = '';
@@ -1090,6 +1227,45 @@ function handleClear() {
   setStatus('');
 }
 
+function handleClearText() {
+  const prompt = $('promptText');
+  if (prompt) prompt.value = '';
+  const n = $('nText');
+  if (n) n.value = '2';
+  const hd = $('hdText');
+  if (hd) hd.checked = false;
+  const ratio = $('aspectRatioText');
+  if (ratio) ratio.value = '1:1';
+  const results = $('resultsText');
+  if (results) results.innerHTML = '';
+  selectedPresetsText.clear();
+  syncPresetUiText();
+  setStatusText('');
+  syncModelConstraints();
+}
+
+function setActiveTab(tab, { persist = true } = {}) {
+  const key = tab === 'txt2img' ? 'txt2img' : 'img2img';
+  if (persist) localStorage.setItem(TAB_STORAGE_KEY, key);
+
+  const btnA = $('tabBtnImg2Img');
+  const btnB = $('tabBtnTxt2Img');
+  const panelA = $('tabImg2Img');
+  const panelB = $('tabTxt2Img');
+
+  const isImg = key === 'img2img';
+  if (btnA) {
+    btnA.classList.toggle('active', isImg);
+    btnA.setAttribute('aria-selected', isImg ? 'true' : 'false');
+  }
+  if (btnB) {
+    btnB.classList.toggle('active', !isImg);
+    btnB.setAttribute('aria-selected', !isImg ? 'true' : 'false');
+  }
+  if (panelA) panelA.hidden = !isImg;
+  if (panelB) panelB.hidden = isImg;
+}
+
 function appendPreset(key) {
   const snippet = presets[key];
   if (!snippet) return;
@@ -1105,6 +1281,7 @@ function appendPreset(key) {
 
 function init() {
   $('submit').disabled = true;
+  if ($('submitText')) $('submitText').disabled = true;
   for (const section of document.querySelectorAll('[data-auth="required"]')) {
     section.hidden = true;
   }
@@ -1148,6 +1325,22 @@ function init() {
     const src = img.dataset.fullSrc || img.src;
     const originalSrc = img.dataset.originalSrc || '';
     const imgs = Array.from($('results')?.querySelectorAll?.('.result img') || []);
+    const items = imgs.map((el) => ({
+      kind: 'output',
+      src: el.dataset.fullSrc || el.src,
+      title: '输出预览',
+      originalSrc: el.dataset.originalSrc || '',
+    }));
+    const index = Math.max(0, imgs.indexOf(img));
+    openImageViewer({ src, title: '输出预览', originalSrc, gallery: { items, index } });
+  });
+
+  $('resultsText')?.addEventListener('click', (e) => {
+    const img = e.target?.closest?.('img');
+    if (!img) return;
+    const src = img.dataset.fullSrc || img.src;
+    const originalSrc = img.dataset.originalSrc || '';
+    const imgs = Array.from($('resultsText')?.querySelectorAll?.('.result img') || []);
     const items = imgs.map((el) => ({
       kind: 'output',
       src: el.dataset.fullSrc || el.src,
@@ -1412,6 +1605,8 @@ function init() {
 
   $('submit').addEventListener('click', handleSubmit);
   $('clear').addEventListener('click', handleClear);
+  $('submitText')?.addEventListener('click', handleSubmitText);
+  $('clearText')?.addEventListener('click', handleClearText);
   $('openLogin').addEventListener('click', () => {
     setFormError('loginError', '');
     openModal('loginModal');
@@ -1429,15 +1624,31 @@ function init() {
   $('guestRegister')?.addEventListener('click', () => $('openRegister')?.click());
 
   const modelSelect = $('modelId');
-  if (modelSelect) {
+  const modelSelectText = $('modelIdText');
+  {
     const saved = localStorage.getItem(MODEL_STORAGE_KEY);
-    if (saved) modelSelect.value = saved;
-    modelSelect.addEventListener('change', () => {
-      localStorage.setItem(MODEL_STORAGE_KEY, String(modelSelect.value || 'dashscope'));
+    if (saved) {
+      if (modelSelect) modelSelect.value = saved;
+      if (modelSelectText) modelSelectText.value = saved;
+    }
+    const onChange = (target) => {
+      const v = String(target?.value || 'dashscope');
+      localStorage.setItem(MODEL_STORAGE_KEY, v);
+      if (modelSelect && modelSelect.value !== v) modelSelect.value = v;
+      if (modelSelectText && modelSelectText.value !== v) modelSelectText.value = v;
       syncModelConstraints();
-    });
+    };
+    modelSelect?.addEventListener('change', () => onChange(modelSelect));
+    modelSelectText?.addEventListener('change', () => onChange(modelSelectText));
   }
   syncModelConstraints();
+
+  $('tabBtnImg2Img')?.addEventListener('click', () => setActiveTab('img2img'));
+  $('tabBtnTxt2Img')?.addEventListener('click', () => setActiveTab('txt2img'));
+  {
+    const savedTab = localStorage.getItem(TAB_STORAGE_KEY);
+    setActiveTab(savedTab === 'txt2img' ? 'txt2img' : 'img2img');
+  }
 
   for (const btn of document.querySelectorAll('[data-close-modal]')) {
     btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
@@ -1464,12 +1675,16 @@ function init() {
   for (const btn of document.querySelectorAll('button[data-prompt]')) {
     btn.addEventListener('click', () => appendPreset(btn.dataset.prompt));
   }
+  for (const btn of document.querySelectorAll('button[data-prompt-text]')) {
+    btn.addEventListener('click', () => appendPresetText(btn.dataset.promptText));
+  }
 
   $('baseIndex')?.addEventListener('change', () => {
     if (selectedFiles.length) renderPreview(selectedFiles);
   });
 
   syncPresetUi();
+  syncPresetUiText();
   refreshMe().catch(() => setAuthUi({ user: null, quota: null }));
 
   window.addEventListener('resize', () => {
@@ -1532,6 +1747,13 @@ function syncPresetUi() {
   }
 }
 
+function syncPresetUiText() {
+  for (const btn of document.querySelectorAll('button[data-prompt-text]')) {
+    const key = btn.dataset.promptText;
+    btn.classList.toggle('selected', selectedPresetsText.has(key));
+  }
+}
+
 function normalizeNewlines(text) {
   return String(text || '').replace(/\n{3,}/g, '\n\n');
 }
@@ -1583,4 +1805,65 @@ function removePresetFromPrompt(snippet) {
     el.setSelectionRange(el.value.length, el.value.length);
     el.scrollTop = el.scrollHeight;
   } catch {}
+}
+
+function addPresetToPromptText(snippet) {
+  const el = $('promptText');
+  if (!el) return;
+  const base = el.value.trimEnd();
+  const next = base ? `${base}\n${snippet}` : snippet;
+  el.value = normalizeNewlines(next).trim();
+  el.focus();
+  try {
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.scrollTop = el.scrollHeight;
+  } catch {}
+}
+
+function removePresetFromPromptText(snippet) {
+  const el = $('promptText');
+  if (!el) return;
+  let text = String(el.value || '');
+  const target = String(snippet || '');
+  if (!target) return;
+
+  let idx = text.indexOf(target);
+  while (idx !== -1) {
+    const before = text.slice(0, idx);
+    const after = text.slice(idx + target.length);
+
+    let newBefore = before;
+    let newAfter = after;
+
+    if (newBefore.endsWith('\n') && newAfter.startsWith('\n')) {
+      newBefore = newBefore.slice(0, -1);
+    } else if (newBefore.endsWith('\n')) {
+      newBefore = newBefore.slice(0, -1);
+    } else if (newAfter.startsWith('\n')) {
+      newAfter = newAfter.slice(1);
+    }
+
+    text = `${newBefore}${newAfter}`;
+    idx = text.indexOf(target);
+  }
+
+  el.value = normalizeNewlines(text).trim();
+  el.focus();
+  try {
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.scrollTop = el.scrollHeight;
+  } catch {}
+}
+
+function appendPresetText(snippet) {
+  const key = String(snippet || '');
+  if (!key) return;
+  if (selectedPresetsText.has(key)) {
+    selectedPresetsText.delete(key);
+    removePresetFromPromptText(key);
+  } else {
+    selectedPresetsText.add(key);
+    addPresetToPromptText(key);
+  }
+  syncPresetUiText();
 }

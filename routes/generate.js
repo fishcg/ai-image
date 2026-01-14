@@ -81,6 +81,8 @@ async function parseAndAuth({ req, res, pool }) {
 }
 
 function validateRequest(parsed) {
+  const modeRaw = String(parsed?.mode || 'img2img');
+  const mode = modeRaw === 'txt2img' ? 'txt2img' : 'img2img';
   const modelId = String(parsed?.modelId || 'dashscope');
   const provider = getProvider(modelId);
   if (!provider) return { ok: false, statusCode: 400, payload: { error: `Unknown modelId: ${modelId}` } };
@@ -93,12 +95,15 @@ function validateRequest(parsed) {
   const n = Number.isFinite(nRaw) ? Math.max(1, Math.min(maxN, Math.floor(nRaw))) : defaultN;
   const images = Array.isArray(parsed?.images) ? parsed.images : [];
   const hd = Boolean(parsed?.hd);
+  const aspectRatio = parsed?.aspectRatio == null ? null : String(parsed.aspectRatio).trim();
 
   if (!prompt) return { ok: false, statusCode: 400, payload: { error: 'Prompt is required' } };
-  if (images.length === 0) return { ok: false, statusCode: 400, payload: { error: 'At least 1 image is required' } };
   if (images.length > 3) return { ok: false, statusCode: 400, payload: { error: 'At most 3 input images are allowed' } };
+  if (mode === 'img2img' && images.length === 0) {
+    return { ok: false, statusCode: 400, payload: { error: 'At least 1 image is required' } };
+  }
 
-  return { ok: true, modelId, provider, prompt, n, images, hd };
+  return { ok: true, mode, modelId, provider, prompt, n, images, hd, aspectRatio };
 }
 
 async function runGenerate({
@@ -115,7 +120,7 @@ async function runGenerate({
 }) {
   const v = validateRequest(parsed);
   if (!v.ok) return { statusCode: v.statusCode, payload: v.payload };
-  const { modelId, provider, prompt, n, images, hd } = v;
+  const { mode, modelId, provider, prompt, n, images, hd, aspectRatio } = v;
 
   const month = getMonthKey(new Date());
   let reservation;
@@ -159,9 +164,11 @@ async function runGenerate({
       ai,
       nanoai,
       env: process.env,
+      mode,
       prompt,
       n,
       hd,
+      aspectRatio,
       uploadedUrls,
       baseDim,
       timeoutMs,

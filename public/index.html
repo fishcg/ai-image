@@ -142,6 +142,18 @@
       </div>
 
       <section class="card" data-auth="required">
+        <div class="tabs" role="tablist" aria-label="生成模式">
+          <button id="tabBtnImg2Img" class="tabBtn active" type="button" role="tab" aria-selected="true" aria-controls="tabImg2Img">
+            修图
+          </button>
+          <button id="tabBtnTxt2Img" class="tabBtn" type="button" role="tab" aria-selected="false" aria-controls="tabTxt2Img">
+            生图
+          </button>
+        </div>
+      </section>
+
+      <div id="tabImg2Img" class="tabPanel" role="tabpanel" aria-labelledby="tabBtnImg2Img">
+        <section class="card" data-auth="required">
         <div class="row">
           <div>
             <label class="label" for="modelId">选择模型</label>
@@ -300,6 +312,81 @@
         <h2 class="h2">输出结果</h2>
         <div id="results" class="results"></div>
       </section>
+      </div>
+
+      <div id="tabTxt2Img" class="tabPanel" role="tabpanel" aria-labelledby="tabBtnTxt2Img" hidden>
+        <section class="card" data-auth="required">
+          <div class="row">
+            <div class="grid2">
+              <div>
+                <label class="label" for="modelIdText">选择模型</label>
+                <div class="modelPick selectWrap">
+                  <select id="modelIdText" title="选择模型">
+                    <option value="dashscope" selected>快速生成</option>
+                    <option value="google-nano-banana-pro">精修（速度较慢，失败请重试）</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="label" for="aspectRatioText">画幅比例</label>
+                <div class="selectWrap">
+                  <select id="aspectRatioText" title="画幅比例">
+                    <option value="1:1" selected>1:1（方形）</option>
+                    <option value="4:3">4:3（横向）</option>
+                    <option value="3:4">3:4（纵向）</option>
+                    <option value="16:9">16:9（宽屏）</option>
+                    <option value="9:16">9:16（竖屏）</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label class="label" for="nText">生成数量（1–6）</label>
+              <input id="nText" type="number" min="1" max="6" value="2" />
+              <div id="nHintText" class="hint"></div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label class="label" for="promptText">Prompt</label>
+            <textarea id="promptText" rows="5" placeholder="描述你希望生成的画面…"></textarea>
+            <div class="effectGroups">
+              <div class="effectGroup">
+                <div class="effectTitle">预设效果</div>
+                <div class="chips">
+                  <button class="chip" type="button" data-prompt-text="纯色背景（方便抠图），背景干净，无杂物，无阴影投射到背景上。">纯色背景（方便抠图）</button>
+                  <button class="chip" type="button" data-prompt-text="产品棚拍风格，纯白背景，柔光箱打光，阴影自然，细节清晰。">白底产品图</button>
+                  <button class="chip" type="button" data-prompt-text="电影级光影，浅景深，真实质感，细节丰富，高动态范围。">电影质感</button>
+                  <button class="chip" type="button" data-prompt-text="二次元插画风，干净线条，柔和光照，高质量细节。">二次元插画</button>
+                </div>
+              </div>
+            </div>
+            <div class="hint">示例：二次元女孩，樱花雨，电影级光影，超清细节。</div>
+          </div>
+
+          <div class="row">
+            <label class="check">
+              <input id="hdText" type="checkbox" />
+              <span>超清</span>
+            </label>
+            <div class="hint">勾选后会提升输出分辨率（不同模型表现略有差异）。</div>
+          </div>
+
+          <div class="row actions">
+            <button id="submitText" class="primary" type="button">开始生成</button>
+            <button id="clearText" class="secondary" type="button">清空</button>
+            <div id="statusText" class="status"></div>
+          </div>
+        </section>
+
+        <section class="card" data-auth="required">
+          <h2 class="h2">输出结果</h2>
+          <div id="resultsText" class="results"></div>
+        </section>
+      </div>
 
       <footer class="footer">
         <div>提示：点击【生成】按钮后，请耐心等到，一般 1min 内可生成</div>
