@@ -1,4 +1,4 @@
-// 配置示例文件（请复制为 config.js 并填写真实配置；不要提交 config.js）
+// 配置示例文件（请复制为 config.js 并填写真实配置）
 const http = {
   port: 7993,
   enableCORS: true,

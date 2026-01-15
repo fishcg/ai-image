@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-image-service
+spec:
+  type: NodePort
+  ports:
+    - name: web
+      port: 7993
+      targetPort: 7993
+      nodePort: 30093
+  selector:
+    app: ai-image
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-image
+spec:
+  selector:
+    matchLabels:
+      app: ai-image
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ai-image
+    spec:
+      containers:
+        - name: ai-image
+          image: 172.24.173.77:30500/ai-image:0.0.1
+          imagePullPolicy: IfNotPresent
+          args:
+            ["start"]
+          volumeMounts:
+            - name: config
+              mountPath: /home/www/ai-image/config.js
+              subPath: config.js
+          ports:
+            - containerPort: 7993
+          env:
+            - name: TZ
+              value: 'Asia/Shanghai'
+      volumes:
+        - name: config
+          configMap:
+            name: ai-image-cfg
+            items:
+              - key: config.js
+                path: config.js
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: ai-image-cfg
+  labels:
+    app: ai-image
+data:
+  config.js: |
+    const http = {
+      port: 7993,
+      enableCORS: true,
+    };
+      
+    const dc = {
+      ossFilePath: 'test/log',
+    };
+      
+    const ai = {
+      URL: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+      API_KEY: 'YOUR_DASHSCOPE_API_KEY',
+      MODEL: 'qwen-image-edit-plus',
+      TIMEOUT: Number(process.env.DASHSCOPE_TIMEOUT || 360000), // 超时时间，单位 ms
+    };
+      
+    const aliyun = {
+      oss: {
+        region: 'oss-cn-hangzhou',
+        internal: false,
+        secure: false,
+        bucket: 'YOUR_OSS_BUCKET',
+        timeout: 300000,
+        accessKeyId: 'YOUR_ACCESS_KEY_ID',
+        accessKeySecret: 'YOUR_ACCESS_KEY_SECRET',
+      },
+    };
+      
+    const mysql = {
+      host: process.env.MYSQL_HOST || '127.0.0.1',
+      port: Number(process.env.MYSQL_PORT || 3306),
+      user: process.env.MYSQL_USER || 'root',
+      password: process.env.MYSQL_PASSWORD || 'YOUR_MYSQL_PASSWORD',
+      database: process.env.MYSQL_DATABASE || 'ai_image',
+    };
+      
+    const auth = {
+      registrationCode: process.env.REGISTRATION_CODE || 'CHANGE_ME_REGISTRATION_CODE',
+    };
+      
+    const nanoai = {
+      apiUrl: 'https://www.test.ai/api',
+      apiKey: 'YOUR_NANOAI_API_KEY',
+      model: 'gemini-3-pro-image-preview',
+      imageSize: '2K',
+      imageSizeHd: '4K',
+      timeout: 360000,
+    };
+      
+    module.exports = { http, dc, ai, aliyun, mysql, auth, nanoai };
