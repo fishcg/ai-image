@@ -1,6 +1,6 @@
 clone:
   git:
-    image: woodpeckerci/plugin-git
+    image: 172.24.173.77:30500/woodpecker-git:latest
     settings:
       # 【关键1】禁用部分克隆 (partial clone)，改为浅克隆 (depth 1)
       # 部分克隆在国内网络环境下非常容易断流
