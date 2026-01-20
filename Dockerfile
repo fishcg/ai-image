@@ -1,4 +1,4 @@
-FROM node:24.10
+FROM 172.24.173.77:30500/node:24.13.0-alpine
 
 WORKDIR /home/www/ai-image
 
