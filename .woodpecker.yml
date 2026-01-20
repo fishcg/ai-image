@@ -25,6 +25,8 @@ steps:
         - latest
         - ${CI_COMMIT_SHA:0:7}
       insecure: true
+      driver_opts:
+        - image=172.24.173.77:30500/moby-buildkit:buildx-stable-1
       # Dockerfile 路径 (如果就在根目录，这行可以删掉)
       # dockerfile: Dockerfile
 
