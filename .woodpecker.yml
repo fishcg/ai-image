@@ -1,0 +1,21 @@
+pipeline:
+  build-and-push:
+    image: woodpeckerci/plugin-docker
+    settings:
+      registry: 172.24.173.77:30500
+      repo: 172.24.173.77:30500/ai-image
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:7} # 加上 commit hash，方便回滚
+      # 按需开启不安全模式 (允许 HTTP)
+      insecure: true
+      # Dockerfile 路径 (如果就在根目录，这行可以删掉)
+      # dockerfile: Dockerfile
+
+      # 认证信息
+      # 如果你的私有仓库没有设置密码，这两行可以直接删掉
+      # 如果有密码，请去 Woodpecker 网页端 Secrets 配置
+      # username:
+      #   from_secret: docker_username
+      # password:
+      #   from_secret: docker_password

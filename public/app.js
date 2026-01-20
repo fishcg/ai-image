@@ -856,6 +856,23 @@ function syncModelConstraints() {
 
   syncOne({ modelIdId: 'modelId', nId: 'n', nHintId: 'nHint' });
   syncOne({ modelIdId: 'modelIdText', nId: 'nText', nHintId: 'nHintText' });
+
+  // 检查快速修图模式下已选择文件的大小
+  const modelId = String($('modelId')?.value || 'dashscope');
+  if (modelId === 'dashscope' && selectedFiles.length > 0) {
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const oversizedFiles = selectedFiles.filter(f => f.size > MAX_SIZE);
+
+    if (oversizedFiles.length > 0) {
+      const names = oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`).join('、');
+      setStatus(`快速生图模式下，图片大小不能超过 10MB。以下文件超过限制：${names}`, 'error');
+      $('images').value = '';
+      selectedFiles = [];
+      syncBaseIndexOptions(0);
+      renderPreview([]);
+      updateFileInfo([]);
+    }
+  }
 }
 
 function getFaceStrength() {
@@ -1047,6 +1064,20 @@ async function handleSubmit() {
     return;
   }
 
+  const modelId = String($('modelId')?.value || 'dashscope');
+
+  // 检查快速修图模式下的文件大小限制
+  if (modelId === 'dashscope') {
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
+
+    if (oversizedFiles.length > 0) {
+      const names = oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`).join('、');
+      setStatus(`快速生图模式下，图片大小不能超过 10MB。以下文件超过限制：${names}`, 'error');
+      return;
+    }
+  }
+
   let prompt = $('prompt').value.trim();
   if (!prompt) {
     setStatus('请填写 prompt。', 'error');
@@ -1058,7 +1089,6 @@ async function handleSubmit() {
     prompt = `${prompt}\n${faceSnippet}`.trim();
   }
 
-  const modelId = String($('modelId')?.value || 'dashscope');
   const maxN = isNanoModel(modelId) ? 1 : 6;
   const defaultN = isNanoModel(modelId) ? 1 : 2;
   const n = clampInt($('n')?.value, 1, maxN, defaultN);
@@ -1302,7 +1332,27 @@ function init() {
   }
 
   $('images').addEventListener('change', () => {
-    selectedFiles = Array.from($('images').files || []).slice(0, 3);
+    const files = Array.from($('images').files || []).slice(0, 3);
+
+    // 检查快速修图模式下的文件大小限制
+    const modelId = String($('modelId')?.value || 'dashscope');
+    if (modelId === 'dashscope') {
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+      const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
+
+      if (oversizedFiles.length > 0) {
+        const names = oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`).join('、');
+        setStatus(`快速生图模式下，图片大小不能超过 10MB。以下文件超过限制：${names}`, 'error');
+        $('images').value = '';
+        selectedFiles = [];
+        syncBaseIndexOptions(0);
+        renderPreview([]);
+        updateFileInfo([]);
+        return;
+      }
+    }
+
+    selectedFiles = files;
     syncBaseIndexOptions(selectedFiles.length);
     renderPreview(selectedFiles);
     updateFileInfo(selectedFiles);
