@@ -27,6 +27,15 @@ steps:
       insecure: true
       driver_opts:
         - image=172.24.173.77:30500/moby-buildkit:buildx-stable-1
+        # 告诉 BuildKit 进程走代理
+        - env.http_proxy=http://172.24.173.76:7899
+        - env.https_proxy=http://172.24.173.76:7899
+        - env.no_proxy=localhost,127.0.0.1,172.24.173.77,10.42.0.0/16
+
+      # 【修改3】配置构建过程参数 (执行 RUN 命令用)
+      build_args:
+        - http_proxy=http://172.24.173.76:7899
+        - https_proxy=http://172.24.173.76:7899
       # Dockerfile 路径 (如果就在根目录，这行可以删掉)
       # dockerfile: Dockerfile
 
