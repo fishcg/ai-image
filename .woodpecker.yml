@@ -16,23 +16,28 @@ clone:
       - no_proxy=localhost,127.0.0.1,10.42.0.0/16,10.43.0.0/16,172.24.173.77
 steps:
   build-and-push:
-    image: 172.24.173.77:30500/woodpecker-plugin-docker-buildx:latest
+    # 【关键修改】使用刚才搬运的 plugins/docker 镜像
+    image: 172.24.173.77:30500/standard-docker:latest
+
+    # 特权模式依然是必须的
     privileged: true
+
+    # 注入代理，让它能拉取 FROM 基础镜像
+    environment:
+      - https_proxy=http://172.24.173.76:7899
+      - http_proxy=http://172.24.173.76:7899
+      - no_proxy=localhost,127.0.0.1,172.24.173.77,10.42.0.0/16,10.43.0.0/16
+
     settings:
+      # 这里的配置和 woodpecker 插件完全通用
       registry: http://172.24.173.77:30500
       repo: 172.24.173.77:30500/ai-image
       tags:
         - latest
         - ${CI_COMMIT_SHA:0:7}
       insecure: true
-      driver_opts:
-        - image=172.24.173.77:30500/moby-buildkit:buildx-stable-1
-        # 告诉 BuildKit 进程走代理
-        - env.http_proxy=http://172.24.173.76:7899
-        - env.https_proxy=http://172.24.173.76:7899
-        - env.no_proxy=localhost,127.0.0.1,172.24.173.77,10.42.0.0/16
-
-      # 【修改3】配置构建过程参数 (执行 RUN 命令用)
+      # 这个插件很简单，不需要 driver_opts
+      # 如果需要构建参数：
       build_args:
         - http_proxy=http://172.24.173.76:7899
         - https_proxy=http://172.24.173.76:7899
