@@ -1,4 +1,20 @@
-pipeline:
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      # 【关键1】禁用部分克隆 (partial clone)，改为浅克隆 (depth 1)
+      # 部分克隆在国内网络环境下非常容易断流
+      partial: false
+      depth: 1
+      # 增加重试次数
+      tags: true
+    # 按需注入代理
+    environment:
+      - https_proxy=http://172.24.173.76:7899
+      - http_proxy=http://172.24.173.76:7899
+      # 记得把内网IP加入 no_proxy，防止推镜像时走代理
+      - no_proxy=localhost,127.0.0.1,10.42.0.0/16,10.43.0.0/16,172.24.173.77
+steps:
   build-and-push:
     image: woodpeckerci/plugin-docker
     settings:
@@ -6,8 +22,7 @@ pipeline:
       repo: 172.24.173.77:30500/ai-image
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:7} # 加上 commit hash，方便回滚
-      # 按需开启不安全模式 (允许 HTTP)
+        - ${CI_COMMIT_SHA:0:7}
       insecure: true
       # Dockerfile 路径 (如果就在根目录，这行可以删掉)
       # dockerfile: Dockerfile
