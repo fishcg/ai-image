@@ -51,3 +51,10 @@ steps:
       #   from_secret: docker_username
       # password:
       #   from_secret: docker_password
+  update-k8s-deployment:
+    image: 172.24.173.77:30500/bitnami-kubectl:latest
+    environment:
+      - KUBECONFIG=/woodpecker/kubeconfig
+    commands:
+      # 【关键】更新 Deployment 的镜像字段
+      - kubectl set image deployment/ai-image ai-image=172.24.173.77:30500/ai-image:${CI_COMMIT_SHA:0:7} --namespace=default
