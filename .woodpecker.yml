@@ -18,7 +18,7 @@ steps:
   build-and-push:
     image: 172.24.173.77:30500/woodpecker-plugin-docker-buildx:latest
     settings:
-      registry: 172.24.173.77:30500
+      registry: http://172.24.173.77:30500
       repo: 172.24.173.77:30500/ai-image
       tags:
         - latest
