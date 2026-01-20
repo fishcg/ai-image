@@ -17,6 +17,7 @@ clone:
 steps:
   build-and-push:
     image: 172.24.173.77:30500/woodpecker-plugin-docker-buildx:latest
+    privileged: true
     settings:
       registry: http://172.24.173.77:30500
       repo: 172.24.173.77:30500/ai-image
