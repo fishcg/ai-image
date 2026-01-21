@@ -10,10 +10,7 @@ clone:
       tags: true
 steps:
   build-and-push:
-    # 【关键修改】使用刚才搬运的 plugins/docker 镜像
     image: 172.24.173.77:30500/standard-docker:latest
-
-    # 特权模式依然是必须的
     privileged: true
 
     settings:

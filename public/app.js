@@ -8,7 +8,7 @@ const presets = {
   '烟雾效果':
     '增加层次丰富的烟雾/雾气（smoke/fog），半透明体积感，边缘柔和不过度遮挡主体，氛围更强但主体清晰。',
   '武器发光':
-    '让人物的武器（非人物本身）附带对应的光效，发光边缘干净，带轻微光晕与溢光，保持武器材质细节与轮廓不变。',
+    '让人物的武器（非人物本身）附带对应的光效，发光边缘带轻微光晕与溢光，保持武器材质细节与轮廓不变。',
   '火焰特效':
     '添加真实火焰特效（flame），火光照亮周围，颜色自然（橙黄/蓝焰可选），火焰与主体接触处细节丰富。',
   '能量光环':
@@ -24,11 +24,11 @@ const presets = {
   '去噪':
     '降低噪点与颗粒（denoise），平滑但不糊，保留关键细节与纹理。',
   '二次元柔光':
-    '添加二次元风柔光（anime soft light），整体更通透，暗部提亮但不灰，肤色干净自然，保留五官与妆面细节。',
+    '添加二次元风柔光（anime soft light），整体更通透，暗部提亮但不灰，肤色干净自然，保留五官与妆面细节。不要简单用光描边',
   '大眼高光':
     '加强眼睛高光与通透感（eye sparkle），虹膜更清晰，眼白干净不过曝，保持眼型不变避免夸张变形。',
   '水润面妆':
-    '让人物面部妆容非常水晶剔透，鼻尖，嘴唇，额头添加大高光，皮肤有光泽但不过度油光，妆容细节清晰，保持自然质感。',
+    '鼻尖，嘴唇，额头添加大高光，皮肤有光泽但不油光，妆容细节清晰，保持自然质感。',
   '面部高光':
     '鼻尖，嘴唇，额头添加大高光，皮肤不过度油光，妆容细节清晰，保持自然质感。',
   '漫画线稿':
@@ -358,18 +358,14 @@ function applyModalTransform() {
   img.style.cursor = modalDrag ? 'grabbing' : 'grab';
 }
 
-function getPaintTransparency() {
-  const el = $('paintTransparency');
-  return clampInt(el ? el.value : 80, 0, 100, 80);
-}
-
-function getPaintAlpha() {
-  return 1 - getPaintTransparency() / 100;
+function getPaintSize() {
+  const el = $('paintSize');
+  return clampInt(el ? el.value : 28, 10, 100, 28);
 }
 
 function syncPaintUi() {
-  const badge = $('paintAlphaValue');
-  if (badge) badge.textContent = `${Math.round(getPaintAlpha() * 100)}%`;
+  const badge = $('paintSizeValue');
+  if (badge) badge.textContent = `${getPaintSize()}`;
 }
 
 function hexToRgb(hex) {
@@ -380,11 +376,10 @@ function hexToRgb(hex) {
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
-function getPaintColorRgba(alpha) {
+function getPaintColorRgba() {
   const color = $('paintColor')?.value || '#ff0000';
   const rgb = hexToRgb(color) || { r: 255, g: 0, b: 0 };
-  const a = Math.max(0, Math.min(1, Number(alpha)));
-  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`;
 }
 
 function getPaintFeather() {
@@ -1570,10 +1565,10 @@ function init() {
         canvasEl.setPointerCapture(e.pointerId);
       } catch {}
 
-      const alpha = getPaintAlpha();
+      const size = getPaintSize();
       const feather = getPaintFeather();
-      const rgba = getPaintColorRgba(alpha);
-      stampBrush(ctx, x, y, 28, feather, rgba);
+      const rgba = getPaintColorRgba();
+      stampBrush(ctx, x, y, size, feather, rgba);
     });
 
     canvasEl.addEventListener('pointermove', (e) => {
@@ -1586,10 +1581,10 @@ function init() {
       e.preventDefault();
       const pt = canvasPointFromEvent(e, canvasEl);
 
-      const alpha = getPaintAlpha();
+      const size = getPaintSize();
       const feather = getPaintFeather();
-      const rgba = getPaintColorRgba(alpha);
-      const radius = 28;
+      const rgba = getPaintColorRgba();
+      const radius = size;
       const spacing = Math.max(3, radius * 0.35);
 
       const x0 = modalPaint.lastX;
@@ -1620,7 +1615,7 @@ function init() {
     canvasEl.addEventListener('pointercancel', endPaint);
   }
 
-  $('paintTransparency')?.addEventListener('input', syncPaintUi);
+  $('paintSize')?.addEventListener('input', syncPaintUi);
   $('paintUndo')?.addEventListener('click', () => undoPaint());
   $('paintReset')?.addEventListener('click', async () => {
     const key = modalPaint?.fileKey;
