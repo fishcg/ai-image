@@ -184,6 +184,14 @@ function setFormError(id, message) {
   el.hidden = !text;
 }
 
+function setFileError(message) {
+  const el = $('fileError');
+  if (!el) return;
+  const text = String(message || '').trim();
+  el.textContent = text;
+  el.hidden = !text;
+}
+
 function setModalImage({ src, title, originalSrc, mode = 'new' }) {
   const img = $('imageModalImg');
   const a = $('imageModalOpen');
@@ -865,13 +873,17 @@ function syncModelConstraints() {
 
     if (oversizedFiles.length > 0) {
       const names = oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`).join('、');
-      setStatus(`快速生图模式下，图片大小不能超过 10MB。以下文件超过限制：${names}`, 'error');
+      setFileError(`快速生图模式下，图片大小不能超过 10MB。以下文件超过限制：${names}`);
       $('images').value = '';
       selectedFiles = [];
       syncBaseIndexOptions(0);
       renderPreview([]);
       updateFileInfo([]);
+    } else {
+      setFileError('');
     }
+  } else {
+    setFileError('');
   }
 }
 
@@ -1073,7 +1085,7 @@ async function handleSubmit() {
 
     if (oversizedFiles.length > 0) {
       const names = oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`).join('、');
-      setStatus(`快速生图模式下，图片大小不能超过 10MB。以下文件超过限制：${names}`, 'error');
+      setFileError(`快速生图模式下，图片大小不能超过 10MB。以下文件超过限制：${names}`);
       return;
     }
   }
@@ -1256,6 +1268,7 @@ function handleClear() {
   syncPresetUi();
   syncPromptWithSelectedPresets();
   syncModelConstraints();
+  setFileError('');
   setStatus('');
 }
 
@@ -1342,7 +1355,7 @@ function init() {
 
       if (oversizedFiles.length > 0) {
         const names = oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`).join('、');
-        setStatus(`快速生图模式下，图片大小不能超过 10MB。以下文件超过限制：${names}`, 'error');
+        setFileError(`快速生图模式下，图片大小不能超过 10MB。以下文件超过限制：${names}`);
         $('images').value = '';
         selectedFiles = [];
         syncBaseIndexOptions(0);
@@ -1356,6 +1369,7 @@ function init() {
     syncBaseIndexOptions(selectedFiles.length);
     renderPreview(selectedFiles);
     updateFileInfo(selectedFiles);
+    setFileError('');
     setStatus('');
   });
 
