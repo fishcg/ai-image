@@ -8,12 +8,6 @@ clone:
       depth: 1
       # 增加重试次数
       tags: true
-    # 按需注入代理
-    environment:
-      https_proxy: http://172.24.173.76:7899
-      http_proxy: http://172.24.173.76:7899
-      # 记得把内网IP加入 no_proxy，防止推镜像时走代理
-      no_proxy: localhost,127.0.0.1,10.42.0.0/16,10.43.0.0/16,172.24.173.77
 steps:
   build-and-push:
     # 【关键修改】使用刚才搬运的 plugins/docker 镜像
