@@ -10,10 +10,10 @@ clone:
       tags: true
     # 按需注入代理
     environment:
-      - https_proxy=http://172.24.173.76:7899
-      - http_proxy=http://172.24.173.76:7899
+      https_proxy: http://172.24.173.76:7899
+      http_proxy: http://172.24.173.76:7899
       # 记得把内网IP加入 no_proxy，防止推镜像时走代理
-      - no_proxy=localhost,127.0.0.1,10.42.0.0/16,10.43.0.0/16,172.24.173.77
+      no_proxy: localhost,127.0.0.1,10.42.0.0/16,10.43.0.0/16,172.24.173.77
 steps:
   build-and-push:
     # 【关键修改】使用刚才搬运的 plugins/docker 镜像
@@ -21,12 +21,6 @@ steps:
 
     # 特权模式依然是必须的
     privileged: true
-
-    # 注入代理，让它能拉取 FROM 基础镜像
-    environment:
-      - https_proxy=http://172.24.173.76:7899
-      - http_proxy=http://172.24.173.76:7899
-      - no_proxy=localhost,127.0.0.1,172.24.173.77,10.42.0.0/16,10.43.0.0/16
 
     settings:
       # 这里的配置和 woodpecker 插件完全通用
@@ -41,6 +35,7 @@ steps:
       build_args:
         - http_proxy=http://172.24.173.76:7899
         - https_proxy=http://172.24.173.76:7899
+        - no_proxy=localhost,127.0.0.1,172.24.173.77,10.42.0.0/16,10.43.0.0/16
       # Dockerfile 路径 (如果就在根目录，这行可以删掉)
       # dockerfile: Dockerfile
 
@@ -51,10 +46,15 @@ steps:
       #   from_secret: docker_username
       # password:
       #   from_secret: docker_password
+
+    when:
+      event: [push, tag]
   update-k8s-deployment:
     image: 172.24.173.77:30500/bitnami-kubectl:latest
     environment:
-      - KUBECONFIG=/woodpecker/kubeconfig
+      KUBECONFIG: /woodpecker/kubeconfig
     commands:
       # 【关键】更新 Deployment 的镜像字段
       - kubectl set image deployment/ai-image ai-image=172.24.173.77:30500/ai-image:${CI_COMMIT_SHA:0:7} --namespace=default
+    when:
+      event: [push, tag]
