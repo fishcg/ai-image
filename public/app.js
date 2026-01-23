@@ -848,6 +848,12 @@ function syncModelConstraints() {
       nInput.value = '1';
       nInput.disabled = true;
       if (nHint) nHint.textContent = 'Nano 模型仅支持生成 1 张。';
+    } else if (modelId === 'dashscope') {
+      nInput.min = '1';
+      nInput.max = '4';
+      nInput.disabled = false;
+      nInput.value = String(clampInt(nInput.value, 1, 4, 2));
+      if (nHint) nHint.textContent = '快速生图最多支持 4 张。';
     } else {
       nInput.min = '1';
       nInput.max = '6';
@@ -1096,7 +1102,7 @@ async function handleSubmit() {
     prompt = `${prompt}\n${faceSnippet}`.trim();
   }
 
-  const maxN = isNanoModel(modelId) ? 1 : 6;
+  const maxN = isNanoModel(modelId) ? 1 : (modelId === 'dashscope' ? 4 : 6);
   const defaultN = isNanoModel(modelId) ? 1 : 2;
   const n = clampInt($('n')?.value, 1, maxN, defaultN);
 
@@ -1178,7 +1184,7 @@ async function handleSubmitText() {
   }
 
   const modelId = String($('modelIdText')?.value || 'dashscope');
-  const maxN = isNanoModel(modelId) ? 1 : 6;
+  const maxN = isNanoModel(modelId) ? 1 : (modelId === 'dashscope' ? 4 : 6);
   const defaultN = isNanoModel(modelId) ? 1 : 2;
   const n = clampInt($('nText')?.value, 1, maxN, defaultN);
   const hd = Boolean($('hdText')?.checked);
