@@ -90,7 +90,8 @@ function validateRequest(parsed) {
   const prompt = String(parsed?.prompt || '').trim();
   const nRaw = Number(parsed?.n);
   const isNanoModel = modelId === 'google-nano-banana-pro';
-  const maxN = isNanoModel ? 1 : 6;
+  const isDashScope = modelId === 'dashscope';
+  const maxN = isNanoModel ? 1 : (isDashScope ? 4 : 6);
   const defaultN = isNanoModel ? 1 : 2;
   const n = Number.isFinite(nRaw) ? Math.max(1, Math.min(maxN, Math.floor(nRaw))) : defaultN;
   const images = Array.isArray(parsed?.images) ? parsed.images : [];
