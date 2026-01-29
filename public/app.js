@@ -194,8 +194,11 @@ function setFileError(message) {
 
 function setModalImage({ src, title, originalSrc, mode = 'new' }) {
   const img = $('imageModalImg');
+  const imgOriginal = $('imageModalImgOriginal');
   const a = $('imageModalOpen');
   const toggleBtn = $('toggleOriginal');
+  const compareWrapper = $('compareSliderWrapper');
+  const compareSliderLine = $('compareSliderLine');
   if (!img || !a) return false;
 
   const newSrc = String(src || '');
@@ -217,6 +220,47 @@ function setModalImage({ src, title, originalSrc, mode = 'new' }) {
   img.src = nextSrc;
   img.alt = title || 'preview';
   a.href = nextSrc;
+
+  // Setup comparison slider if original exists
+  if (hasOriginal && imgOriginal && compareWrapper && compareSliderLine) {
+    imgOriginal.src = original;
+    imgOriginal.style.transform = '';
+
+    // Reset slider to left position (0%) BEFORE showing
+    const compareRange = $('compareRange');
+    if (compareRange) {
+      compareRange.value = '0';
+    }
+
+    // Set initial position before display - start at 0% (show original)
+    img.style.clipPath = 'inset(0 0 0 0%)';
+    compareSliderLine.style.left = '0%';
+    compareSliderLine.style.display = 'block';
+
+    // Wait for image to load to get actual width
+    const updateSliderWidth = () => {
+      const container = img.closest('.image-compare-container');
+      if (container) {
+        const width = container.offsetWidth;
+        compareWrapper.style.width = `${width}px`;
+        compareWrapper.hidden = false;
+      }
+    };
+
+    // Update width after image loads
+    if (img.complete) {
+      setTimeout(updateSliderWidth, 0);
+    } else {
+      img.addEventListener('load', updateSliderWidth, { once: true });
+    }
+  } else if (compareWrapper && compareSliderLine && imgOriginal) {
+    compareWrapper.hidden = true;
+    compareSliderLine.style.display = 'none';
+    compareSliderLine.style.left = '50%'; // Reset position when hiding
+    imgOriginal.src = '';
+    img.style.clipPath = ''; // Clear clip-path when no comparison
+  }
+
   if (toggleBtn) {
     toggleBtn.hidden = !hasOriginal;
     toggleBtn.setAttribute('aria-pressed', nextMode === 'original' ? 'true' : 'false');
@@ -320,8 +364,29 @@ function clampModalPan(x, y, zoom) {
   return { x: cx, y: cy };
 }
 
+function updateImageComparison(percentage) {
+  const img = $('imageModalImg');
+  const imgOriginal = $('imageModalImgOriginal');
+  const sliderLine = $('compareSliderLine');
+  if (!img || !imgOriginal) return;
+
+  // Handle 0 correctly - don't use || because 0 is falsy
+  const value = Number(percentage);
+  const percent = Math.max(0, Math.min(100, isNaN(value) ? 0 : value));
+
+  // Update clip-path to show percentage of new image from right
+  img.style.clipPath = `inset(0 0 0 ${percent}%)`;
+
+  // Update slider line position
+  if (sliderLine) {
+    sliderLine.style.left = `${percent}%`;
+  }
+}
+
 function applyModalTransform() {
   const img = $('imageModalImg');
+  const imgOriginal = $('imageModalImgOriginal');
+  const compareWrapper = $('compareSliderWrapper');
   if (!img) return;
   const zoom = getModalZoom();
   const { x, y } = getModalPan();
@@ -333,7 +398,25 @@ function applyModalTransform() {
     img.style.maxHeight = '';
     img.style.transform = 'translate(0px, 0px)';
     img.style.cursor = '';
+    if (imgOriginal) {
+      imgOriginal.style.width = '';
+      imgOriginal.style.height = '';
+      imgOriginal.style.maxWidth = '';
+      imgOriginal.style.maxHeight = '';
+      imgOriginal.style.transform = 'translate(0px, 0px)';
+    }
     setModalPan(0, 0);
+
+    // Update slider width when zoom returns to 100%
+    if (compareWrapper && imgOriginal && imgOriginal.src) {
+      setTimeout(() => {
+        const container = img.closest('.image-compare-container');
+        if (container) {
+          const width = container.offsetWidth;
+          compareWrapper.style.width = `${width}px`;
+        }
+      }, 0);
+    }
     return;
   }
 
@@ -350,12 +433,31 @@ function applyModalTransform() {
     img.style.maxHeight = 'none';
     img.style.width = `${Math.max(1, Math.round(bw * zoom))}px`;
     img.style.height = `${Math.max(1, Math.round(bh * zoom))}px`;
+
+    // Sync original image transform and update slider width
+    if (imgOriginal && imgOriginal.src) {
+      imgOriginal.style.maxWidth = 'none';
+      imgOriginal.style.maxHeight = 'none';
+      imgOriginal.style.width = `${Math.max(1, Math.round(bw * zoom))}px`;
+      imgOriginal.style.height = `${Math.max(1, Math.round(bh * zoom))}px`;
+
+      // Update slider width to match zoomed image
+      if (compareWrapper) {
+        const zoomedWidth = Math.max(1, Math.round(bw * zoom));
+        compareWrapper.style.width = `${zoomedWidth}px`;
+      }
+    }
   }
 
   const clamped = clampModalPan(x, y, zoom);
   if (clamped.x !== x || clamped.y !== y) setModalPan(clamped.x, clamped.y);
   img.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
   img.style.cursor = modalDrag ? 'grabbing' : 'grab';
+
+  // Sync original image position
+  if (imgOriginal && imgOriginal.src) {
+    imgOriginal.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
+  }
 }
 
 function getPaintSize() {
@@ -1565,7 +1667,22 @@ function init() {
     });
   }
 
+  // Image comparison slider
+  const compareRange = $('compareRange');
+  if (compareRange) {
+    compareRange.addEventListener('input', () => {
+      const value = Number(compareRange.value);
+      const percent = isNaN(value) ? 0 : value;
+      updateImageComparison(percent);
+    });
+  }
+
   $('imageModalImg')?.addEventListener('load', () => {
+    captureModalBaseSize();
+    applyModalTransform();
+  });
+
+  $('imageModalImgOriginal')?.addEventListener('load', () => {
     captureModalBaseSize();
     applyModalTransform();
   });

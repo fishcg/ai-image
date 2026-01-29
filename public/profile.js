@@ -215,6 +215,9 @@
     const images = document.createElement('div');
     images.className = 'history-images';
 
+    // Get original image URL from input images if available
+    const originalSrc = (item.inputImageUrls && item.inputImageUrls.length > 0) ? item.inputImageUrls[0] : '';
+
     (item.outputImageUrls || []).forEach((url) => {
       const imgWrapper = document.createElement('div');
       imgWrapper.className = 'history-image';
@@ -223,7 +226,7 @@
       img.src = url;
       img.alt = 'Generated image';
       img.loading = 'lazy';
-      img.addEventListener('click', () => openImageModal(url));
+      img.addEventListener('click', () => openImageModal(url, originalSrc));
 
       const overlay = document.createElement('div');
       overlay.className = 'history-image-overlay';
@@ -298,11 +301,20 @@
     card.className = 'favorite-card';
     card.dataset.favoriteId = item.id;
 
+    // Get original image URL from history if available
+    const originalSrc = item.history?.inputImageUrls?.[0] || '';
+
+    // Add click event to card for opening modal
+    card.addEventListener('click', (e) => {
+      // Don't open modal if clicking on buttons
+      if (e.target.tagName === 'BUTTON') return;
+      openImageModal(item.imageUrl, originalSrc);
+    });
+
     const img = document.createElement('img');
     img.src = item.imageUrl;
     img.alt = 'Favorite image';
     img.loading = 'lazy';
-    img.addEventListener('click', () => openImageModal(item.imageUrl));
 
     const overlay = document.createElement('div');
     overlay.className = 'favorite-card-overlay';
@@ -436,11 +448,56 @@
   }
 
   // Image modal
-  function openImageModal(url) {
+  function openImageModal(url, originalSrc = '') {
+    const imgOriginal = document.getElementById('imageModalImgOriginal');
+    const compareWrapper = document.getElementById('compareSliderWrapper');
+    const compareSliderLine = document.getElementById('compareSliderLine');
+    const compareRange = document.getElementById('compareRange');
+
     imageModalImg.src = url;
     imageModalImg.style.transform = 'scale(1)';
     zoomRange.value = '100';
     zoomValue.textContent = '100%';
+
+    // Check if original image exists and is different
+    const hasOriginal = Boolean(originalSrc) && originalSrc !== url;
+
+    if (hasOriginal && imgOriginal && compareWrapper && compareSliderLine) {
+      // Setup comparison mode
+      imgOriginal.src = originalSrc;
+      imgOriginal.style.transform = 'scale(1)';
+
+      // Set initial position to 0% (show original)
+      if (compareRange) {
+        compareRange.value = '0';
+      }
+      imageModalImg.style.clipPath = 'inset(0 0 0 0%)';
+      compareSliderLine.style.left = '0%';
+      compareSliderLine.style.display = 'block';
+
+      // Wait for image to load to get actual width
+      const updateSliderWidth = () => {
+        const container = imageModalImg.closest('.image-compare-container');
+        if (container) {
+          const width = container.offsetWidth;
+          compareWrapper.style.width = `${width}px`;
+          compareWrapper.hidden = false;
+        }
+      };
+
+      if (imageModalImg.complete) {
+        setTimeout(updateSliderWidth, 0);
+      } else {
+        imageModalImg.addEventListener('load', updateSliderWidth, { once: true });
+      }
+    } else if (compareWrapper && compareSliderLine && imgOriginal) {
+      // No comparison mode
+      compareWrapper.hidden = true;
+      compareSliderLine.style.display = 'none';
+      imgOriginal.src = '';
+      imageModalImg.style.clipPath = '';
+    }
+
     imageModal.hidden = false;
   }
 
@@ -497,8 +554,41 @@
   zoomRange.addEventListener('input', (e) => {
     const scale = e.target.value / 100;
     imageModalImg.style.transform = `scale(${scale})`;
+    const imgOriginal = document.getElementById('imageModalImgOriginal');
+    if (imgOriginal && imgOriginal.src) {
+      imgOriginal.style.transform = `scale(${scale})`;
+    }
     zoomValue.textContent = `${e.target.value}%`;
   });
+
+  // Image comparison slider
+  const compareRange = document.getElementById('compareRange');
+  if (compareRange) {
+    compareRange.addEventListener('input', (e) => {
+      const value = Number(e.target.value);
+      const percent = isNaN(value) ? 0 : value;
+      updateImageComparison(percent);
+    });
+  }
+
+  // Update image comparison position
+  function updateImageComparison(percentage) {
+    const img = document.getElementById('imageModalImg');
+    const sliderLine = document.getElementById('compareSliderLine');
+    if (!img) return;
+
+    // Handle 0 correctly - don't use || because 0 is falsy
+    const value = Number(percentage);
+    const percent = Math.max(0, Math.min(100, isNaN(value) ? 0 : value));
+
+    // Update clip-path to show percentage of new image from right
+    img.style.clipPath = `inset(0 0 0 ${percent}%)`;
+
+    // Update slider line position
+    if (sliderLine) {
+      sliderLine.style.left = `${percent}%`;
+    }
+  }
 
   // Modal backdrop close
   imageModal.addEventListener('click', (e) => {
