@@ -34,3 +34,32 @@ CREATE TABLE IF NOT EXISTS usage_monthly (
   PRIMARY KEY (user_id, month),
   CONSTRAINT fk_usage_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Generation history table
+CREATE TABLE IF NOT EXISTS generation_history (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  mode ENUM('img2img', 'txt2img') NOT NULL,
+  model_id VARCHAR(64) NOT NULL,
+  prompt TEXT NOT NULL,
+  input_image_urls JSON,
+  output_image_urls JSON NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_user_created (user_id, created_at DESC),
+  CONSTRAINT fk_history_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Favorites table
+CREATE TABLE IF NOT EXISTS favorites (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  history_id BIGINT UNSIGNED NOT NULL,
+  image_url VARCHAR(1024) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_user_created (user_id, created_at DESC),
+  UNIQUE KEY idx_user_url (user_id, image_url(255)),
+  CONSTRAINT fk_favorites_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_favorites_history FOREIGN KEY (history_id) REFERENCES generation_history(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

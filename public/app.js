@@ -726,6 +726,7 @@ function setAuthUi({ user, quota }) {
   const openLoginBtn = $('openLogin');
   const openRegisterBtn = $('openRegister');
   const logoutBtn = $('logout');
+  const profileLink = $('profileLink');
   const submitBtn = $('submit');
   const submitTextBtn = $('submitText');
 
@@ -736,6 +737,7 @@ function setAuthUi({ user, quota }) {
     openLoginBtn.style.display = '';
     openRegisterBtn.style.display = '';
     logoutBtn.style.display = 'none';
+    if (profileLink) profileLink.style.display = 'none';
     submitBtn.disabled = true;
     if (submitTextBtn) submitTextBtn.disabled = true;
     setActiveTab('img2img', { persist: false });
@@ -759,6 +761,7 @@ function setAuthUi({ user, quota }) {
   openLoginBtn.style.display = 'none';
   openRegisterBtn.style.display = 'none';
   logoutBtn.style.display = '';
+  if (profileLink) profileLink.style.display = '';
 
   if (currentQuota) {
     quotaEl.textContent = `本月剩余：${currentQuota.remaining}/${currentQuota.limit}（${currentQuota.month}）`;
@@ -950,7 +953,7 @@ function renderResults(urls) {
   for (const url of urls) results.appendChild(buildResultNode(url));
 }
 
-function buildResultNode(url, { originalSrc } = {}) {
+function buildResultNode(url, { originalSrc, historyId } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'result';
 
@@ -970,6 +973,18 @@ function buildResultNode(url, { originalSrc } = {}) {
   a.textContent = '打开原图';
 
   meta.appendChild(a);
+
+  // Add favorite button if historyId is available
+  if (historyId && currentUser) {
+    const favoriteBtn = document.createElement('button');
+    favoriteBtn.className = 'favorite-btn-main';
+    favoriteBtn.textContent = '★ 收藏';
+    favoriteBtn.dataset.historyId = historyId;
+    favoriteBtn.dataset.imageUrl = url;
+    favoriteBtn.addEventListener('click', () => handleAddFavorite(favoriteBtn, historyId, url));
+    meta.appendChild(favoriteBtn);
+  }
+
   wrap.appendChild(img);
   wrap.appendChild(meta);
   return wrap;
@@ -993,7 +1008,7 @@ function setResultsLoading(loading) {
   results.insertBefore(el, results.firstChild);
 }
 
-function prependResults(urls, { originalSrc } = {}) {
+function prependResults(urls, { originalSrc, historyId } = {}) {
   const results = $('results');
   if (!results) return;
   if (!urls || urls.length === 0) return;
@@ -1005,7 +1020,7 @@ function prependResults(urls, { originalSrc } = {}) {
   const anchor = loadingEl ? loadingEl.nextSibling : results.firstChild;
 
   for (const url of urls) {
-    results.insertBefore(buildResultNode(url, { originalSrc }), anchor);
+    results.insertBefore(buildResultNode(url, { originalSrc, historyId }), anchor);
   }
 }
 
@@ -1027,7 +1042,7 @@ function setResultsLoadingText(loading) {
   results.insertBefore(el, results.firstChild);
 }
 
-function prependResultsText(urls) {
+function prependResultsText(urls, { historyId } = {}) {
   const results = $('resultsText');
   if (!results) return;
   if (!urls || urls.length === 0) return;
@@ -1039,7 +1054,7 @@ function prependResultsText(urls) {
   const anchor = loadingEl ? loadingEl.nextSibling : results.firstChild;
 
   for (const url of urls) {
-    results.insertBefore(buildResultNode(url), anchor);
+    results.insertBefore(buildResultNode(url, { historyId }), anchor);
   }
 }
 
@@ -1163,7 +1178,7 @@ async function handleSubmit() {
 
     setResultsLoading(false);
     const data = final.payload || {};
-    prependResults(data.outputImageUrls || [], { originalSrc });
+    prependResults(data.outputImageUrls || [], { originalSrc, historyId: data.historyId });
     if (data.quota) setAuthUi({ user: currentUser, quota: data.quota });
     setStatus(`完成：生成 ${((data.outputImageUrls || []).length)} 张图片。`);
   } catch (err) {
@@ -1237,7 +1252,7 @@ async function handleSubmitText() {
 
     setResultsLoadingText(false);
     const data = final.payload || {};
-    prependResultsText(data.outputImageUrls || []);
+    prependResultsText(data.outputImageUrls || [], { historyId: data.historyId });
     if (data.quota) setAuthUi({ user: currentUser, quota: data.quota });
     setStatusText(`完成：生成 ${((data.outputImageUrls || []).length)} 张图片。`);
   } catch (err) {
@@ -1288,6 +1303,42 @@ function handleClearText() {
   syncPresetUiText();
   setStatusText('');
   syncModelConstraints();
+}
+
+async function handleAddFavorite(btn, historyId, imageUrl) {
+  if (!currentUser) {
+    alert('请先登录');
+    return;
+  }
+
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '收藏中...';
+
+  try {
+    const resp = await fetch('/api/favorites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ historyId, imageUrl }),
+    });
+
+    if (resp.ok) {
+      btn.textContent = '✓ 已收藏';
+      btn.classList.add('favorited');
+    } else {
+      const data = await resp.json();
+      if (resp.status === 409) {
+        btn.textContent = '✓ 已收藏';
+        btn.classList.add('favorited');
+      } else {
+        throw new Error(data.error || '收藏失败');
+      }
+    }
+  } catch (err) {
+    btn.textContent = originalText;
+    btn.disabled = false;
+    alert('收藏失败: ' + (err?.message || String(err)));
+  }
 }
 
 function setActiveTab(tab, { persist = true } = {}) {

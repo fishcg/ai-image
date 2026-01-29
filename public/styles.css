@@ -377,6 +377,46 @@ button.primary {
 button.secondary { background: rgba(255,255,255,0.06); }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.profile-link {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.profile-link:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.favorite-btn-main {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: rgba(124, 58, 237, 0.3);
+  border: 1px solid rgba(124, 58, 237, 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.favorite-btn-main:hover {
+  background: rgba(124, 58, 237, 0.5);
+  border-color: var(--primary);
+}
+.favorite-btn-main.favorited {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.2);
+  border-color: #fbbf24;
+  cursor: default;
+}
+.favorite-btn-main:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .primary.loading {
   position: relative;
   padding-right: 42px;

@@ -5,6 +5,8 @@ const { getPool } = require('./lib/mysql');
 const { sendText, serveStatic } = require('./lib/http');
 const authRoutes = require('./routes/auth');
 const generateRoutes = require('./routes/generate');
+const historyRoutes = require('./routes/history');
+const favoritesRoutes = require('./routes/favorites');
 const { http: httpConfig, dc, ai, nanoai, mysql: mysqlConfig, auth: authConfig } = require('./config');
 
 const PORT = Number(process.env.PORT || httpConfig?.port || 7992);
@@ -78,6 +80,22 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && url.pathname === '/api/generate') {
     await generateRoutes.generateAsyncStatus({ req, res });
+    return;
+  }
+  if (req.method === 'GET' && url.pathname === '/api/history') {
+    await historyRoutes.getHistory({ req, res, pool });
+    return;
+  }
+  if (req.method === 'GET' && url.pathname === '/api/favorites') {
+    await favoritesRoutes.getFavorites({ req, res, pool });
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/api/favorites') {
+    await favoritesRoutes.addFavorite({ req, res, pool });
+    return;
+  }
+  if (req.method === 'DELETE' && url.pathname === '/api/favorites') {
+    await favoritesRoutes.removeFavorite({ req, res, pool });
     return;
   }
 

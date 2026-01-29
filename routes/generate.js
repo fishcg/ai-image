@@ -7,6 +7,7 @@ const { getProvider } = require('../providers');
 const { ProviderError } = require('../providers/errors');
 const { getAuthUser } = require('../services/auth');
 const { getMonthKey, reserveQuota, adjustQuota, getQuota } = require('../services/quota');
+const { saveHistory } = require('./history');
 
 const jobStore = new Map(); // jobId -> { status, createdAt, doneAt, result }
 const JOB_TTL_MS = 60 * 60 * 1000;
@@ -182,7 +183,22 @@ async function runGenerate({
       await adjustQuota({ pool, userId: user.id, month, delta: -refund }).catch(() => {});
     }
     const quota = await getQuota({ pool, userId: user.id, month, monthlyLimit });
-    return { statusCode: 200, payload: { inputImageUrls: uploadedUrls, outputImageUrls, quota, raw: result?.raw } };
+
+    // Save to history
+    const historyId = await saveHistory({
+      pool,
+      userId: user.id,
+      mode,
+      modelId,
+      prompt,
+      inputImageUrls: uploadedUrls,
+      outputImageUrls,
+    });
+
+    return {
+      statusCode: 200,
+      payload: { inputImageUrls: uploadedUrls, outputImageUrls, quota, historyId, raw: result?.raw },
+    };
   } catch (err) {
     await adjustQuota({ pool, userId: user.id, month, delta: -reservation.reserved }).catch(() => {});
     if (err instanceof ProviderError) {
