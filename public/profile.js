@@ -12,8 +12,10 @@
   const pageLimit = 20;
 
   // Elements
-  const profileUsername = document.getElementById('profileUsername');
-  const profileLogout = document.getElementById('profileLogout');
+  const navUser = document.getElementById('navUser');
+  const navGuest = document.getElementById('navGuest');
+  const navUsername = document.getElementById('navUsername');
+  const navLogout = document.getElementById('navLogout');
   const tabHistory = document.getElementById('tabHistory');
   const tabFavorites = document.getElementById('tabFavorites');
   const historyPanel = document.getElementById('historyPanel');
@@ -41,7 +43,12 @@
         return false;
       }
       currentUser = data.user;
-      profileUsername.textContent = data.user.username;
+
+      // 更新导航栏
+      if (navUsername) navUsername.textContent = data.user.username;
+      if (navUser) navUser.style.display = 'flex';
+      if (navGuest) navGuest.style.display = 'none';
+
       return true;
     } catch (err) {
       console.error('Failed to check auth:', err);
@@ -366,7 +373,9 @@
   }
 
   // Event listeners
-  profileLogout.addEventListener('click', logout);
+  if (navLogout) {
+    navLogout.addEventListener('click', logout);
+  }
   tabHistory.addEventListener('click', () => switchTab('history'));
   tabFavorites.addEventListener('click', () => switchTab('favorites'));
 

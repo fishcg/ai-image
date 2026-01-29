@@ -730,15 +730,29 @@ function setAuthUi({ user, quota }) {
   const submitBtn = $('submit');
   const submitTextBtn = $('submitText');
 
+  // 导航栏元素
+  const navUser = $('navUser');
+  const navGuest = $('navGuest');
+  const navUsername = $('navUsername');
+  const navProfile = $('navProfile');
+
   if (!currentUser) {
-    me.textContent = '未登录';
-    quotaEl.textContent = '';
-    quotaEl.classList.remove('bad');
-    openLoginBtn.style.display = '';
-    openRegisterBtn.style.display = '';
-    logoutBtn.style.display = 'none';
+    if (me) me.textContent = '未登录';
+    if (quotaEl) {
+      quotaEl.textContent = '';
+      quotaEl.classList.remove('bad');
+    }
+    if (openLoginBtn) openLoginBtn.style.display = '';
+    if (openRegisterBtn) openRegisterBtn.style.display = '';
+    if (logoutBtn) logoutBtn.style.display = 'none';
     if (profileLink) profileLink.style.display = 'none';
-    submitBtn.disabled = true;
+
+    // 更新导航栏
+    if (navUser) navUser.style.display = 'none';
+    if (navGuest) navGuest.style.display = 'flex';
+    if (navProfile) navProfile.style.display = 'none';
+
+    if (submitBtn) submitBtn.disabled = true;
     if (submitTextBtn) submitTextBtn.disabled = true;
     setActiveTab('img2img', { persist: false });
     $('preview').innerHTML = '';
@@ -757,21 +771,31 @@ function setAuthUi({ user, quota }) {
     return;
   }
 
-  me.textContent = currentUser.username;
-  openLoginBtn.style.display = 'none';
-  openRegisterBtn.style.display = 'none';
-  logoutBtn.style.display = '';
+  if (me) me.textContent = currentUser.username;
+  if (openLoginBtn) openLoginBtn.style.display = 'none';
+  if (openRegisterBtn) openRegisterBtn.style.display = 'none';
+  if (logoutBtn) logoutBtn.style.display = '';
   if (profileLink) profileLink.style.display = '';
 
+  // 更新导航栏
+  if (navUser) navUser.style.display = 'flex';
+  if (navGuest) navGuest.style.display = 'none';
+  if (navUsername) navUsername.textContent = currentUser.username;
+  if (navProfile) navProfile.style.display = 'block';
+
   if (currentQuota) {
-    quotaEl.textContent = `本月剩余：${currentQuota.remaining}/${currentQuota.limit}（${currentQuota.month}）`;
-    quotaEl.classList.toggle('bad', currentQuota.remaining <= 0);
-    submitBtn.disabled = currentQuota.remaining <= 0;
+    if (quotaEl) {
+      quotaEl.textContent = `本月剩余：${currentQuota.remaining}/${currentQuota.limit}（${currentQuota.month}）`;
+      quotaEl.classList.toggle('bad', currentQuota.remaining <= 0);
+    }
+    if (submitBtn) submitBtn.disabled = currentQuota.remaining <= 0;
     if (submitTextBtn) submitTextBtn.disabled = currentQuota.remaining <= 0;
   } else {
-    quotaEl.textContent = '';
-    quotaEl.classList.remove('bad');
-    submitBtn.disabled = false;
+    if (quotaEl) {
+      quotaEl.textContent = '';
+      quotaEl.classList.remove('bad');
+    }
+    if (submitBtn) submitBtn.disabled = false;
     if (submitTextBtn) submitTextBtn.disabled = false;
   }
 }
@@ -1725,21 +1749,52 @@ function init() {
   $('clear').addEventListener('click', handleClear);
   $('submitText')?.addEventListener('click', handleSubmitText);
   $('clearText')?.addEventListener('click', handleClearText);
-  $('openLogin').addEventListener('click', () => {
-    setFormError('loginError', '');
-    openModal('loginModal');
-    $('loginUsername').focus();
-  });
-  $('openRegister').addEventListener('click', () => {
-    setFormError('registerError', '');
-    openModal('registerModal');
-    $('registerUsername').focus();
-  });
+
+  // 旧版按钮（如果存在）
+  if ($('openLogin')) {
+    $('openLogin').addEventListener('click', () => {
+      setFormError('loginError', '');
+      openModal('loginModal');
+      $('loginUsername').focus();
+    });
+  }
+  if ($('openRegister')) {
+    $('openRegister').addEventListener('click', () => {
+      setFormError('registerError', '');
+      openModal('registerModal');
+      $('registerUsername').focus();
+    });
+  }
+  if ($('logout')) {
+    $('logout').addEventListener('click', () => handleLogout());
+  }
+
   $('doLogin').addEventListener('click', () => handleLogin());
   $('doRegister').addEventListener('click', () => handleRegister());
-  $('logout').addEventListener('click', () => handleLogout());
   $('guestLogin')?.addEventListener('click', () => $('openLogin')?.click());
   $('guestRegister')?.addEventListener('click', () => $('openRegister')?.click());
+
+  // 导航栏按钮事件绑定
+  const navLogin = $('navLogin');
+  const navRegister = $('navRegister');
+  const navLogout = $('navLogout');
+  if (navLogin) {
+    navLogin.addEventListener('click', () => {
+      setFormError('loginError', '');
+      openModal('loginModal');
+      $('loginUsername').focus();
+    });
+  }
+  if (navRegister) {
+    navRegister.addEventListener('click', () => {
+      setFormError('registerError', '');
+      openModal('registerModal');
+      $('registerUsername').focus();
+    });
+  }
+  if (navLogout) {
+    navLogout.addEventListener('click', () => handleLogout());
+  }
 
   const modelSelect = $('modelId');
   const modelSelectText = $('modelIdText');

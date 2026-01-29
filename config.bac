@@ -26,6 +26,7 @@ const aliyun = {
     timeout: 300000,
     accessKeyId: 'YOUR_ACCESS_KEY_ID',
     accessKeySecret: 'YOUR_ACCESS_KEY_SECRET',
+    publicURL: "https://acgay.oss-cn-hangzhou.aliyuncs.com",
   },
 };
 
