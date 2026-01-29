@@ -1,0 +1,315 @@
+/* 样式增强补丁 - 黑色背景 + 白色文字 + 绿色按钮 */
+
+:root {
+  --bg: #000000;
+  --card: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.7);
+  --primary: #10b981;
+  --primary-dark: #059669;
+  --primary-light: #34d399;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+body::before {
+  background: none !important;
+  opacity: 0 !important;
+}
+
+.header h1 {
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  background: linear-gradient(135deg, #10b981, #34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.topbar {
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.me, .quota {
+  color: #ffffff !important;
+}
+
+.tabBtn {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.tabBtn.active {
+  background: linear-gradient(135deg, #10b981, #34d399) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 16px 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+button.primary {
+  background: linear-gradient(135deg, #10b981, #34d399) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  transition: all 0.2s ease;
+}
+
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669, #10b981) !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5);
+  transform: translateY(-1px);
+}
+
+button.primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button.secondary {
+  background: rgba(255,255,255,0.05) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  transition: all 0.2s ease;
+}
+
+button.secondary:hover:not(:disabled) {
+  background: rgba(255,255,255,0.1) !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
+
+.label {
+  color: #ffffff !important;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+}
+
+.hint, .muted {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.result {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.result:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.result a {
+  color: #ffffff !important;
+}
+
+.result a:hover {
+  color: #10b981 !important;
+}
+
+.modalCard {
+  background: rgba(0, 0, 0, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.8) !important;
+}
+
+.modalTitle {
+  color: #ffffff !important;
+}
+
+.modal {
+  background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.thumb {
+  border-radius: 14px;
+  border-color: rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.thumb:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.02);
+}
+
+.fileBtn {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(52, 211, 153, 0.2)) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #ffffff !important;
+  transition: all 0.2s ease;
+}
+
+.fileBtn:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(52, 211, 153, 0.3)) !important;
+  transform: translateY(-1px);
+}
+
+.fileInfo {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.chip {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  transform: scale(1.02);
+}
+
+.chip.selected {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(52, 211, 153, 0.2)) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+.guest {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.guestTitle {
+  color: #ffffff !important;
+}
+
+.effectGroup {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.effectTitle {
+  color: #ffffff !important;
+}
+
+.faceControls {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.badge {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+.profile-link {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+.profile-link:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.favorite-btn-main {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #ffffff !important;
+}
+
+.favorite-btn-main:hover {
+  background: rgba(16, 185, 129, 0.3) !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+}
+
+.favorite-btn-main.favorited {
+  background: rgba(245, 158, 11, 0.2) !important;
+  border-color: #f59e0b !important;
+  color: #fbbf24 !important;
+}
+
+.formError {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  color: #ffffff !important;
+}
+
+.status {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.status.error {
+  color: #ef4444 !important;
+}
+
+.quota.bad {
+  color: #ef4444 !important;
+}
+
+/* 选择框下拉箭头 */
+.selectWrap::after {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* 确保所有文本都是白色 */
+* {
+  color: inherit;
+}
+
+h1, h2, h3, h4, h5, h6,
+p, span, div, label, a {
+  color: inherit !important;
+}
