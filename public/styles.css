@@ -417,6 +417,31 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   cursor: not-allowed;
 }
 
+.share-btn-main {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.share-btn-main:hover {
+  background: rgba(16, 185, 129, 0.5);
+  border-color: #10b981;
+}
+.share-btn-main.shared {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  cursor: default;
+}
+.share-btn-main:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .primary.loading {
   position: relative;
   padding-right: 42px;

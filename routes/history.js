@@ -1,5 +1,6 @@
 const { sendJson } = require('../lib/http');
 const { getAuthUser } = require('../services/auth');
+const { getFullImageUrl, extractOssPath } = require('../lib/url-helper');
 
 async function getHistory({ req, res, pool }) {
   let user;
@@ -43,13 +44,17 @@ async function getHistory({ req, res, pool }) {
         return [];
       };
 
+      // Convert relative paths to full URLs
+      const inputPaths = parseIfNeeded(row.input_image_urls);
+      const outputPaths = parseIfNeeded(row.output_image_urls);
+
       return {
         id: row.id,
         mode: row.mode,
         modelId: row.model_id,
         prompt: row.prompt,
-        inputImageUrls: parseIfNeeded(row.input_image_urls),
-        outputImageUrls: parseIfNeeded(row.output_image_urls),
+        inputImageUrls: inputPaths.map(path => getFullImageUrl(path)),
+        outputImageUrls: outputPaths.map(path => getFullImageUrl(path)),
         createdAt: row.created_at,
       };
     });
@@ -66,6 +71,12 @@ async function saveHistory({ pool, userId, mode, modelId, prompt, inputImageUrls
   }
 
   try {
+    // Extract relative paths from full URLs before storing
+    const inputPaths = inputImageUrls && inputImageUrls.length > 0
+      ? inputImageUrls.map(url => extractOssPath(url))
+      : [];
+    const outputPaths = outputImageUrls.map(url => extractOssPath(url));
+
     const [result] = await pool.query(
       `INSERT INTO generation_history (user_id, mode, model_id, prompt, input_image_urls, output_image_urls)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -74,8 +85,8 @@ async function saveHistory({ pool, userId, mode, modelId, prompt, inputImageUrls
         mode,
         modelId,
         prompt,
-        inputImageUrls && inputImageUrls.length > 0 ? JSON.stringify(inputImageUrls) : null,
-        JSON.stringify(outputImageUrls),
+        inputPaths.length > 0 ? JSON.stringify(inputPaths) : null,
+        JSON.stringify(outputPaths),
       ]
     );
     return result.insertId;

@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
   setupFilters();
   setupHeroActions();
+  setupFloatingBar();
   await loadGallery();
   setupInfiniteScroll();
 });
@@ -195,7 +196,7 @@ function createGalleryCard(item) {
         <div class="item-avatar">${userInitial}</div>
         <span class="item-username">${escapeHtml(item.username || '管理员')}</span>
       </div>
-      <div class="item-prompt">${escapeHtml(item.prompt || '')}</div>
+      <!--<div class="item-prompt">${escapeHtml(item.prompt || '')}</div>-->
       <div class="item-footer">
         <div class="item-likes">
           <span>♥</span>
@@ -394,4 +395,37 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// 设置底部悬浮栏
+function setupFloatingBar() {
+  const floatingBar = document.getElementById('floatingActionBar');
+
+  if (!floatingBar) return;
+
+  // 滚动检测
+  let lastScrollY = window.scrollY;
+  let scrollTimeout;
+
+  function handleScroll() {
+    clearTimeout(scrollTimeout);
+
+    scrollTimeout = setTimeout(() => {
+      const currentScrollY = window.scrollY;
+      const heroHeight = document.querySelector('.hero')?.offsetHeight || 600;
+
+      // 向下滚动超过 hero 区域时显示
+      if (currentScrollY > heroHeight) {
+        floatingBar.classList.add('visible');
+      }
+      // 接近顶部时隐藏
+      else if (currentScrollY < heroHeight / 3) {
+        floatingBar.classList.remove('visible');
+      }
+
+      lastScrollY = currentScrollY;
+    }, 100);
+  }
+
+  window.addEventListener('scroll', handleScroll);
 }

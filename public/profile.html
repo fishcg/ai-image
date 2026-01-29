@@ -16,7 +16,7 @@
       <div class="nav-container">
         <div class="nav-brand">
           <h1 class="nav-logo">P了么</h1>
-          <span class="nav-tagline">AI 图片生成与分享</span>
+          <span class="nav-tagline"></span>
         </div>
         <div class="nav-links">
           <a href="/" class="nav-link">首页</a>
@@ -37,6 +37,34 @@
     </nav>
 
     <main class="container" style="margin-top:20px">
+      <!-- 额度信息卡片 -->
+      <div class="quota-card">
+        <div class="quota-header">
+          <h2 class="quota-title">我的额度</h2>
+          <span class="quota-month" id="quotaMonth"></span>
+        </div>
+        <div class="quota-content">
+          <div class="quota-item">
+            <div class="quota-label">当月总额度</div>
+            <div class="quota-value" id="quotaTotal">-</div>
+          </div>
+          <div class="quota-divider"></div>
+          <div class="quota-item">
+            <div class="quota-label">已使用</div>
+            <div class="quota-value used" id="quotaUsed">-</div>
+          </div>
+          <div class="quota-divider"></div>
+          <div class="quota-item">
+            <div class="quota-label">剩余额度</div>
+            <div class="quota-value remaining" id="quotaRemaining">-</div>
+          </div>
+        </div>
+        <div class="quota-progress">
+          <div class="quota-progress-bar" id="quotaProgressBar"></div>
+        </div>
+        <div class="quota-hint">额度每月 1 号自动重置</div>
+      </div>
+
       <!-- Tab 切换 -->
       <div class="profile-tabs">
         <button id="tabHistory" class="tab-btn active" type="button" data-tab="history">历史记录</button>

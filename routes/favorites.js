@@ -1,5 +1,6 @@
 const { readBody, sendJson } = require('../lib/http');
 const { getAuthUser } = require('../services/auth');
+const { getFullImageUrl, extractOssPath } = require('../lib/url-helper');
 
 async function getFavorites({ req, res, pool }) {
   let user;
@@ -45,18 +46,22 @@ async function getFavorites({ req, res, pool }) {
         return [];
       };
 
+      // Convert relative paths to full URLs
+      const inputPaths = parseIfNeeded(row.input_image_urls);
+      const outputPaths = parseIfNeeded(row.output_image_urls);
+
       return {
         id: row.id,
         historyId: row.history_id,
-        imageUrl: row.image_url,
+        imageUrl: getFullImageUrl(row.image_url),
         createdAt: row.created_at,
         history: row.mode
           ? {
               mode: row.mode,
               modelId: row.model_id,
               prompt: row.prompt,
-              inputImageUrls: parseIfNeeded(row.input_image_urls),
-              outputImageUrls: parseIfNeeded(row.output_image_urls),
+              inputImageUrls: inputPaths.map(path => getFullImageUrl(path)),
+              outputImageUrls: outputPaths.map(path => getFullImageUrl(path)),
             }
           : null,
       };
@@ -105,6 +110,9 @@ async function addFavorite({ req, res, pool }) {
     return;
   }
 
+  // Extract relative path from full URL
+  const imagePath = extractOssPath(imageUrl);
+
   try {
     // Verify history belongs to user
     const [rows] = await pool.query('SELECT id FROM generation_history WHERE id = ? AND user_id = ? LIMIT 1', [
@@ -120,7 +128,7 @@ async function addFavorite({ req, res, pool }) {
     await pool.query('INSERT INTO favorites (user_id, history_id, image_url) VALUES (?, ?, ?)', [
       user.id,
       historyId,
-      imageUrl,
+      imagePath,
     ]);
 
     sendJson(res, 200, { ok: true });

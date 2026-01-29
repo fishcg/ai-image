@@ -176,7 +176,45 @@ async function runGenerate({
       timeoutMs,
     });
 
-    const outputImageUrls = Array.isArray(result?.outputImageUrls) ? result.outputImageUrls : [];
+    const providerOutputUrls = Array.isArray(result?.outputImageUrls) ? result.outputImageUrls : [];
+
+    // Download and upload output images to OSS
+    const outputImageUrls = [];
+    for (const providerUrl of providerOutputUrls) {
+      try {
+        // Download image from provider
+        const imageResp = await axios.get(providerUrl, {
+          responseType: 'arraybuffer',
+          timeout: 60000,
+        });
+        const imageBuffer = Buffer.from(imageResp.data);
+
+        // Determine file extension from content-type or URL
+        const contentType = imageResp.headers['content-type'] || '';
+        let ext = '.jpg';
+        if (contentType.includes('png')) ext = '.png';
+        else if (contentType.includes('webp')) ext = '.webp';
+        else if (contentType.includes('gif')) ext = '.gif';
+        else if (providerUrl.includes('.png')) ext = '.png';
+        else if (providerUrl.includes('.webp')) ext = '.webp';
+
+        // Generate OSS key for output image
+        const outputKey = path.posix.join(
+          dc?.ossFilePath ? String(dc.ossFilePath) : 'ai-image',
+          'outputs',
+          `${Date.now()}_${crypto.randomBytes(8).toString('hex')}${ext}`
+        );
+
+        // Upload to OSS
+        const ossUrl = await UploadFile(outputKey, imageBuffer, { mime: contentType || 'image/jpeg' });
+        outputImageUrls.push(ossUrl);
+      } catch (uploadErr) {
+        console.error('Failed to upload output image to OSS:', uploadErr);
+        // If upload fails, fall back to provider URL
+        outputImageUrls.push(providerUrl);
+      }
+    }
+
     const actual = outputImageUrls.length;
     const refund = Math.max(0, reservation.reserved - actual);
     if (refund) {

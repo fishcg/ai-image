@@ -129,7 +129,38 @@
   position: relative;
   padding: 120px 24px 100px;
   overflow: hidden;
-  background: radial-gradient(ellipse at top, rgba(16, 185, 129, 0.15), transparent 60%);
+  background:
+    radial-gradient(ellipse at top, rgba(16, 185, 129, 0.15), transparent 60%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.8) 100%),
+    url('https://acgay.oss-cn-hangzhou.aliyuncs.com/ai-image/images/homepage/7.png');
+  background-size: auto, auto, cover;
+  background-position: center top, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.12), transparent 50%),
+    radial-gradient(circle at 80% 30%, rgba(52, 211, 153, 0.1), transparent 50%);
+  pointer-events: none;
+  animation: bgShift 15s ease-in-out infinite;
+}
+
+@keyframes bgShift {
+  0%, 100% {
+    opacity: 0.6;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateX(20px);
+  }
 }
 
 .hero-content {
@@ -701,6 +732,169 @@
   }
 }
 
+/* 底部悬浮操作栏 */
+.floating-action-bar {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(150px);
+  z-index: 999;
+  width: 200px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 28px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.floating-action-bar.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.floating-action-bar::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 28px;
+  padding: 2px;
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(16, 185, 129, 0.6),
+    transparent,
+    rgba(52, 211, 153, 0.6),
+    transparent
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
+  animation: rotate-border 4s linear infinite;
+  opacity: 0.8;
+}
+
+@keyframes rotate-border {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+.floating-action-bar::after {
+  content: '';
+  position: absolute;
+  inset: -15px;
+  border-radius: 28px;
+  background: radial-gradient(
+    circle,
+    rgba(16, 185, 129, 0.15),
+    transparent 70%
+  );
+  filter: blur(15px);
+  z-index: -2;
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.floating-action-content {
+  position: relative;
+  padding: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.floating-action-left {
+  display: none;
+}
+
+.floating-action-text {
+  display: none;
+}
+
+.floating-action-icon {
+  display: none;
+}
+
+.floating-action-buttons {
+  display: flex;
+  gap: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.floating-action-btn {
+  flex: 1;
+  padding: 0 20px;
+  border-radius: 28px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-decoration: none;
+  white-space: nowrap;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.floating-action-btn:hover {
+  color: rgba(255, 255, 255, 1);
+  transform: scale(1.05);
+  text-shadow: 0 2px 8px rgba(16, 185, 129, 0.6);
+}
+
+.floating-action-btn.primary {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.floating-action-btn.secondary {
+  display: none;
+}
+
+.floating-action-btn-icon {
+  font-size: 18px;
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+}
+
+@media (max-width: 1200px) {
+  .gallery-grid {
+    column-count: 3;
+  }
+}
+
 @media (max-width: 768px) {
   .nav-container {
     flex-direction: column;
@@ -748,6 +942,21 @@
   .image-modal-right {
     width: 100%;
     max-height: 50vh;
+  }
+
+  /* 底部悬浮栏响应式 */
+  .floating-action-bar {
+    bottom: 30px;
+    width: 180px;
+  }
+
+  .floating-action-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .floating-action-btn-icon {
+    font-size: 16px;
   }
 }
 

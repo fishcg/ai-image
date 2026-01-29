@@ -926,7 +926,7 @@ function buildFaceRedrawPrompt(strength) {
   return [
     `面部重绘强度：${s}/5（${intensity}）`,
     '面部重绘，仅修改面部，对皮肤进行磨皮，修复斑点和凹凸不平，皮肤美白（注意脖子也需要美白），妆容更精致，去掉鼻贴和双眼皮贴',
-    '(清晰的下颌线), (高挺的鼻梁), (深邃的眼神),鼻子变小，小脸, 五官更精致，精致的妆面细节, 漫展场照精修',
+    '(清晰的下颌线), (高挺的鼻梁), (深邃的眼神),鼻子很小，小脸, 五官更精致，精致的妆面细节, 漫展场照精修',
   ].join('\n');
 }
 
@@ -1007,6 +1007,14 @@ function buildResultNode(url, { originalSrc, historyId } = {}) {
     favoriteBtn.dataset.imageUrl = url;
     favoriteBtn.addEventListener('click', () => handleAddFavorite(favoriteBtn, historyId, url));
     meta.appendChild(favoriteBtn);
+
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'share-btn-main';
+    shareBtn.textContent = '分享到首页';
+    shareBtn.dataset.historyId = historyId;
+    shareBtn.dataset.imageUrl = url;
+    shareBtn.addEventListener('click', () => handleShareToGallery(shareBtn, historyId, url));
+    meta.appendChild(shareBtn);
   }
 
   wrap.appendChild(img);
@@ -1362,6 +1370,42 @@ async function handleAddFavorite(btn, historyId, imageUrl) {
     btn.textContent = originalText;
     btn.disabled = false;
     alert('收藏失败: ' + (err?.message || String(err)));
+  }
+}
+
+async function handleShareToGallery(btn, historyId, imageUrl) {
+  if (!currentUser) {
+    alert('请先登录');
+    return;
+  }
+
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '分享中...';
+
+  try {
+    const resp = await fetch('/api/gallery/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ historyId, imageUrl }),
+    });
+
+    if (resp.ok) {
+      btn.textContent = '✓ 已分享';
+      btn.classList.add('shared');
+    } else {
+      const data = await resp.json();
+      if (resp.status === 409) {
+        btn.textContent = '✓ 已分享';
+        btn.classList.add('shared');
+      } else {
+        throw new Error(data.error || '分享失败');
+      }
+    }
+  } catch (err) {
+    btn.textContent = originalText;
+    btn.disabled = false;
+    alert('分享失败: ' + (err?.message || String(err)));
   }
 }
 
@@ -1771,8 +1815,22 @@ function init() {
 
   $('doLogin').addEventListener('click', () => handleLogin());
   $('doRegister').addEventListener('click', () => handleRegister());
-  $('guestLogin')?.addEventListener('click', () => $('openLogin')?.click());
-  $('guestRegister')?.addEventListener('click', () => $('openRegister')?.click());
+
+  // Guest login/register buttons
+  if ($('guestLogin')) {
+    $('guestLogin').addEventListener('click', () => {
+      setFormError('loginError', '');
+      openModal('loginModal');
+      $('loginUsername').focus();
+    });
+  }
+  if ($('guestRegister')) {
+    $('guestRegister').addEventListener('click', () => {
+      setFormError('registerError', '');
+      openModal('registerModal');
+      $('registerUsername').focus();
+    });
+  }
 
   // 导航栏按钮事件绑定
   const navLogin = $('navLogin');

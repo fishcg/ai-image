@@ -32,6 +32,11 @@
   const imageModalImg = document.getElementById('imageModalImg');
   const zoomRange = document.getElementById('zoomRange');
   const zoomValue = document.getElementById('zoomValue');
+  const quotaMonth = document.getElementById('quotaMonth');
+  const quotaTotal = document.getElementById('quotaTotal');
+  const quotaUsed = document.getElementById('quotaUsed');
+  const quotaRemaining = document.getElementById('quotaRemaining');
+  const quotaProgressBar = document.getElementById('quotaProgressBar');
 
   // Check authentication
   async function checkAuth() {
@@ -64,6 +69,54 @@
       window.location.href = '/';
     } catch (err) {
       console.error('Failed to logout:', err);
+    }
+  }
+
+  // Load quota info
+  async function loadQuota() {
+    try {
+      const res = await fetch('/api/me');
+      if (!res.ok) throw new Error('Failed to load quota');
+
+      const data = await res.json();
+      if (!data.user || !data.quota) return;
+
+      const quota = data.quota;
+      const total = quota.limit || 0;
+      const used = quota.used || 0;
+      const remaining = quota.remaining || 0;
+      const percentage = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+
+      // Update current month
+      const monthStr = quota.month || '';
+      if (quotaMonth) quotaMonth.textContent = monthStr;
+
+      // Update values
+      if (quotaTotal) quotaTotal.textContent = total;
+      if (quotaUsed) quotaUsed.textContent = used;
+      if (quotaRemaining) quotaRemaining.textContent = remaining;
+
+      // Update progress bar
+      if (quotaProgressBar) {
+        quotaProgressBar.style.width = `${percentage}%`;
+
+        // Change color based on usage
+        if (percentage >= 90) {
+          quotaProgressBar.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
+          quotaProgressBar.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.5)';
+        } else if (percentage >= 70) {
+          quotaProgressBar.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+          quotaProgressBar.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.5)';
+        } else {
+          quotaProgressBar.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
+          quotaProgressBar.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.5)';
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load quota:', err);
+      if (quotaTotal) quotaTotal.textContent = '加载失败';
+      if (quotaUsed) quotaUsed.textContent = '-';
+      if (quotaRemaining) quotaRemaining.textContent = '-';
     }
   }
 
@@ -183,7 +236,16 @@
         addFavorite(item.id, url, favoriteBtn);
       });
 
+      const shareBtn = document.createElement('button');
+      shareBtn.className = 'share-btn';
+      shareBtn.textContent = '分享';
+      shareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        shareToGallery(item.id, url, shareBtn);
+      });
+
       overlay.appendChild(favoriteBtn);
+      overlay.appendChild(shareBtn);
       imgWrapper.appendChild(img);
       imgWrapper.appendChild(overlay);
       images.appendChild(imgWrapper);
@@ -255,6 +317,16 @@
     const actions = document.createElement('div');
     actions.className = 'favorite-actions';
 
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'share-btn-fav';
+    shareBtn.textContent = '分享';
+    shareBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (item.historyId) {
+        shareToGallery(item.historyId, item.imageUrl, shareBtn);
+      }
+    });
+
     const unfavoriteBtn = document.createElement('button');
     unfavoriteBtn.className = 'unfavorite-btn';
     unfavoriteBtn.textContent = '取消收藏';
@@ -263,6 +335,7 @@
       removeFavorite(item.id, card);
     });
 
+    actions.appendChild(shareBtn);
     actions.appendChild(unfavoriteBtn);
     overlay.appendChild(actions);
     card.appendChild(img);
@@ -326,6 +399,39 @@
     } catch (err) {
       console.error('Failed to remove favorite:', err);
       alert('取消收藏失败: ' + err.message);
+    }
+  }
+
+  // Share to gallery
+  async function shareToGallery(historyId, imageUrl, btn) {
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '分享中...';
+
+    try {
+      const res = await fetch('/api/gallery/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ historyId, imageUrl }),
+      });
+
+      if (res.ok) {
+        btn.textContent = '✓ 已分享';
+        btn.classList.add('shared');
+      } else {
+        const data = await res.json();
+        if (res.status === 409) {
+          btn.textContent = '✓ 已分享';
+          btn.classList.add('shared');
+        } else {
+          throw new Error(data.error || '分享失败');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to share to gallery:', err);
+      btn.textContent = originalText;
+      btn.disabled = false;
+      alert('分享失败: ' + err.message);
     }
   }
 
@@ -405,6 +511,7 @@
   async function init() {
     const isAuthed = await checkAuth();
     if (isAuthed) {
+      loadQuota();
       setupInfiniteScroll();
       loadHistory();
     }

@@ -1,5 +1,98 @@
 /* Profile page styles - inherits CSS variables from styles.css */
 
+/* 额度卡片 */
+.quota-card {
+  margin-bottom: 32px;
+  padding: 28px 32px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(52, 211, 153, 0.05));
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.quota-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.quota-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.quota-month {
+  font-size: 14px;
+  color: rgba(16, 185, 129, 0.9);
+  font-weight: 500;
+}
+
+.quota-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.quota-item {
+  flex: 1;
+  text-align: center;
+}
+
+.quota-divider {
+  width: 1px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.quota-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 8px;
+}
+
+.quota-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  font-variant-numeric: tabular-nums;
+}
+
+.quota-value.used {
+  color: rgba(251, 191, 36, 0.9);
+}
+
+.quota-value.remaining {
+  color: rgba(16, 185, 129, 0.95);
+}
+
+.quota-progress {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.quota-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.quota-hint {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .profile-header {
   margin-bottom: 24px;
 }
@@ -198,6 +291,35 @@
   border-color: #fbbf24;
 }
 
+.share-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 6px;
+}
+
+.share-btn:hover {
+  background: rgba(16, 185, 129, 0.5);
+  border-color: #10b981;
+}
+
+.share-btn.shared {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  cursor: default;
+}
+
+.share-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Favorites grid */
 .favorites-grid {
   display: grid;
@@ -259,7 +381,36 @@
 
 .favorite-actions {
   display: flex;
+  gap: 8px;
   justify-content: flex-end;
+}
+
+.share-btn-fav {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.share-btn-fav:hover {
+  background: rgba(16, 185, 129, 0.5);
+  border-color: #10b981;
+}
+
+.share-btn-fav.shared {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  cursor: default;
+}
+
+.share-btn-fav:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .unfavorite-btn {
@@ -294,6 +445,29 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .quota-card {
+    padding: 20px 16px;
+  }
+
+  .quota-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .quota-content {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .quota-divider {
+    display: none;
+  }
+
+  .quota-value {
+    font-size: 28px;
+  }
+
   .profile-topbar {
     flex-direction: column;
     gap: 12px;
