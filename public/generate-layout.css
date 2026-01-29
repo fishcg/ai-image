@@ -1,0 +1,147 @@
+/* 生图页面左右栏布局 - PC 端 */
+
+/* 默认移动端布局 - 保持原有的居中单栏 */
+.generate-layout {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+/* 移动端左右栏为垂直排列 */
+.generate-left,
+.generate-right {
+  width: 100%;
+}
+
+/* 移动端隐藏右侧栏标题，结果显示在表单下方 */
+.generate-right .h2 {
+  display: none;
+}
+
+/* 移动端两个结果容器垂直排列 */
+.generate-right .results {
+  margin-bottom: 20px;
+}
+
+.generate-right .results:last-child {
+  margin-bottom: 0;
+}
+
+/* PC 端左右栏布局 */
+@media (min-width: 1024px) {
+  .generate-layout {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 0;
+    min-height: calc(100vh - 120px); /* 减去导航栏和用户信息栏高度 */
+  }
+
+  /* 左侧工具栏 */
+  .generate-left {
+    width: 50%;
+    min-width: 500px;
+    max-width: 800px;
+    padding: 32px 40px 48px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* 右侧结果展示区 */
+  .generate-right {
+    flex: 1;
+    width: auto;
+    padding: 32px 40px 48px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.15);
+  }
+
+  /* 显示右侧标题 */
+  .generate-right .h2 {
+    display: block;
+    margin-top: 0;
+    margin-bottom: 24px;
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  /* 调整卡片样式 */
+  .generate-layout .card {
+    margin-bottom: 24px;
+  }
+
+  /* 右侧卡片样式调整 */
+  .generate-right .card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* 结果网格优化 - 两个结果容器合并显示 */
+  .generate-right .results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 0;
+  }
+
+  /* 底部提示移到左侧栏底部 */
+  .generate-layout .footer {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+    text-align: center;
+  }
+}
+
+/* 大屏幕优化 */
+@media (min-width: 1440px) {
+  .generate-left {
+    padding: 40px 56px 56px;
+  }
+
+  .generate-right {
+    padding: 40px 56px 56px;
+  }
+
+  .generate-right .results {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+  }
+}
+
+/* 超大屏幕 */
+@media (min-width: 1920px) {
+  .generate-left {
+    max-width: 960px;
+    padding: 48px 72px 64px;
+  }
+
+  .generate-right {
+    padding: 48px 72px 64px;
+  }
+
+  .generate-right .results {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+  }
+
+  .generate-right .h2 {
+    font-size: 28px;
+  }
+}
+
+/* 平板尺寸调整 */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .generate-layout {
+    max-width: 100%;
+    padding: 0 32px 48px;
+  }
+}
+

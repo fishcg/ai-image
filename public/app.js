@@ -194,8 +194,11 @@ function setFileError(message) {
 
 function setModalImage({ src, title, originalSrc, mode = 'new' }) {
   const img = $('imageModalImg');
+  const imgOriginal = $('imageModalImgOriginal');
   const a = $('imageModalOpen');
   const toggleBtn = $('toggleOriginal');
+  const compareWrapper = $('compareSliderWrapper');
+  const compareSliderLine = $('compareSliderLine');
   if (!img || !a) return false;
 
   const newSrc = String(src || '');
@@ -217,6 +220,47 @@ function setModalImage({ src, title, originalSrc, mode = 'new' }) {
   img.src = nextSrc;
   img.alt = title || 'preview';
   a.href = nextSrc;
+
+  // Setup comparison slider if original exists
+  if (hasOriginal && imgOriginal && compareWrapper && compareSliderLine) {
+    imgOriginal.src = original;
+    imgOriginal.style.transform = '';
+
+    // Reset slider to left position (0%) BEFORE showing
+    const compareRange = $('compareRange');
+    if (compareRange) {
+      compareRange.value = '0';
+    }
+
+    // Set initial position before display - start at 0% (show original)
+    img.style.clipPath = 'inset(0 0 0 0%)';
+    compareSliderLine.style.left = '0%';
+    compareSliderLine.style.display = 'block';
+
+    // Wait for image to load to get actual width
+    const updateSliderWidth = () => {
+      const container = img.closest('.image-compare-container');
+      if (container) {
+        const width = container.offsetWidth;
+        compareWrapper.style.width = `${width}px`;
+        compareWrapper.hidden = false;
+      }
+    };
+
+    // Update width after image loads
+    if (img.complete) {
+      setTimeout(updateSliderWidth, 0);
+    } else {
+      img.addEventListener('load', updateSliderWidth, { once: true });
+    }
+  } else if (compareWrapper && compareSliderLine && imgOriginal) {
+    compareWrapper.hidden = true;
+    compareSliderLine.style.display = 'none';
+    compareSliderLine.style.left = '50%'; // Reset position when hiding
+    imgOriginal.src = '';
+    img.style.clipPath = ''; // Clear clip-path when no comparison
+  }
+
   if (toggleBtn) {
     toggleBtn.hidden = !hasOriginal;
     toggleBtn.setAttribute('aria-pressed', nextMode === 'original' ? 'true' : 'false');
@@ -320,8 +364,29 @@ function clampModalPan(x, y, zoom) {
   return { x: cx, y: cy };
 }
 
+function updateImageComparison(percentage) {
+  const img = $('imageModalImg');
+  const imgOriginal = $('imageModalImgOriginal');
+  const sliderLine = $('compareSliderLine');
+  if (!img || !imgOriginal) return;
+
+  // Handle 0 correctly - don't use || because 0 is falsy
+  const value = Number(percentage);
+  const percent = Math.max(0, Math.min(100, isNaN(value) ? 0 : value));
+
+  // Update clip-path to show percentage of new image from right
+  img.style.clipPath = `inset(0 0 0 ${percent}%)`;
+
+  // Update slider line position
+  if (sliderLine) {
+    sliderLine.style.left = `${percent}%`;
+  }
+}
+
 function applyModalTransform() {
   const img = $('imageModalImg');
+  const imgOriginal = $('imageModalImgOriginal');
+  const compareWrapper = $('compareSliderWrapper');
   if (!img) return;
   const zoom = getModalZoom();
   const { x, y } = getModalPan();
@@ -333,7 +398,25 @@ function applyModalTransform() {
     img.style.maxHeight = '';
     img.style.transform = 'translate(0px, 0px)';
     img.style.cursor = '';
+    if (imgOriginal) {
+      imgOriginal.style.width = '';
+      imgOriginal.style.height = '';
+      imgOriginal.style.maxWidth = '';
+      imgOriginal.style.maxHeight = '';
+      imgOriginal.style.transform = 'translate(0px, 0px)';
+    }
     setModalPan(0, 0);
+
+    // Update slider width when zoom returns to 100%
+    if (compareWrapper && imgOriginal && imgOriginal.src) {
+      setTimeout(() => {
+        const container = img.closest('.image-compare-container');
+        if (container) {
+          const width = container.offsetWidth;
+          compareWrapper.style.width = `${width}px`;
+        }
+      }, 0);
+    }
     return;
   }
 
@@ -350,12 +433,31 @@ function applyModalTransform() {
     img.style.maxHeight = 'none';
     img.style.width = `${Math.max(1, Math.round(bw * zoom))}px`;
     img.style.height = `${Math.max(1, Math.round(bh * zoom))}px`;
+
+    // Sync original image transform and update slider width
+    if (imgOriginal && imgOriginal.src) {
+      imgOriginal.style.maxWidth = 'none';
+      imgOriginal.style.maxHeight = 'none';
+      imgOriginal.style.width = `${Math.max(1, Math.round(bw * zoom))}px`;
+      imgOriginal.style.height = `${Math.max(1, Math.round(bh * zoom))}px`;
+
+      // Update slider width to match zoomed image
+      if (compareWrapper) {
+        const zoomedWidth = Math.max(1, Math.round(bw * zoom));
+        compareWrapper.style.width = `${zoomedWidth}px`;
+      }
+    }
   }
 
   const clamped = clampModalPan(x, y, zoom);
   if (clamped.x !== x || clamped.y !== y) setModalPan(clamped.x, clamped.y);
   img.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
   img.style.cursor = modalDrag ? 'grabbing' : 'grab';
+
+  // Sync original image position
+  if (imgOriginal && imgOriginal.src) {
+    imgOriginal.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
+  }
 }
 
 function getPaintSize() {
@@ -726,17 +828,33 @@ function setAuthUi({ user, quota }) {
   const openLoginBtn = $('openLogin');
   const openRegisterBtn = $('openRegister');
   const logoutBtn = $('logout');
+  const profileLink = $('profileLink');
   const submitBtn = $('submit');
   const submitTextBtn = $('submitText');
 
+  // 导航栏元素
+  const navUser = $('navUser');
+  const navGuest = $('navGuest');
+  const navUsername = $('navUsername');
+  const navProfile = $('navProfile');
+
   if (!currentUser) {
-    me.textContent = '未登录';
-    quotaEl.textContent = '';
-    quotaEl.classList.remove('bad');
-    openLoginBtn.style.display = '';
-    openRegisterBtn.style.display = '';
-    logoutBtn.style.display = 'none';
-    submitBtn.disabled = true;
+    if (me) me.textContent = '未登录';
+    if (quotaEl) {
+      quotaEl.textContent = '';
+      quotaEl.classList.remove('bad');
+    }
+    if (openLoginBtn) openLoginBtn.style.display = '';
+    if (openRegisterBtn) openRegisterBtn.style.display = '';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+    if (profileLink) profileLink.style.display = 'none';
+
+    // 更新导航栏
+    if (navUser) navUser.style.display = 'none';
+    if (navGuest) navGuest.style.display = 'flex';
+    if (navProfile) navProfile.style.display = 'none';
+
+    if (submitBtn) submitBtn.disabled = true;
     if (submitTextBtn) submitTextBtn.disabled = true;
     setActiveTab('img2img', { persist: false });
     $('preview').innerHTML = '';
@@ -755,20 +873,31 @@ function setAuthUi({ user, quota }) {
     return;
   }
 
-  me.textContent = currentUser.username;
-  openLoginBtn.style.display = 'none';
-  openRegisterBtn.style.display = 'none';
-  logoutBtn.style.display = '';
+  if (me) me.textContent = currentUser.username;
+  if (openLoginBtn) openLoginBtn.style.display = 'none';
+  if (openRegisterBtn) openRegisterBtn.style.display = 'none';
+  if (logoutBtn) logoutBtn.style.display = '';
+  if (profileLink) profileLink.style.display = '';
+
+  // 更新导航栏
+  if (navUser) navUser.style.display = 'flex';
+  if (navGuest) navGuest.style.display = 'none';
+  if (navUsername) navUsername.textContent = currentUser.username;
+  if (navProfile) navProfile.style.display = 'block';
 
   if (currentQuota) {
-    quotaEl.textContent = `本月剩余：${currentQuota.remaining}/${currentQuota.limit}（${currentQuota.month}）`;
-    quotaEl.classList.toggle('bad', currentQuota.remaining <= 0);
-    submitBtn.disabled = currentQuota.remaining <= 0;
+    if (quotaEl) {
+      quotaEl.textContent = `本月剩余：${currentQuota.remaining}/${currentQuota.limit}（${currentQuota.month}）`;
+      quotaEl.classList.toggle('bad', currentQuota.remaining <= 0);
+    }
+    if (submitBtn) submitBtn.disabled = currentQuota.remaining <= 0;
     if (submitTextBtn) submitTextBtn.disabled = currentQuota.remaining <= 0;
   } else {
-    quotaEl.textContent = '';
-    quotaEl.classList.remove('bad');
-    submitBtn.disabled = false;
+    if (quotaEl) {
+      quotaEl.textContent = '';
+      quotaEl.classList.remove('bad');
+    }
+    if (submitBtn) submitBtn.disabled = false;
     if (submitTextBtn) submitTextBtn.disabled = false;
   }
 }
@@ -899,7 +1028,7 @@ function buildFaceRedrawPrompt(strength) {
   return [
     `面部重绘强度：${s}/5（${intensity}）`,
     '面部重绘，仅修改面部，对皮肤进行磨皮，修复斑点和凹凸不平，皮肤美白（注意脖子也需要美白），妆容更精致，去掉鼻贴和双眼皮贴',
-    '(清晰的下颌线), (高挺的鼻梁), (深邃的眼神),鼻子变小，小脸, 五官更精致，精致的妆面细节, 漫展场照精修',
+    '(清晰的下颌线), (高挺的鼻梁), (深邃的眼神),鼻子很小，小脸, 五官更精致，精致的妆面细节, 漫展场照精修',
   ].join('\n');
 }
 
@@ -950,7 +1079,7 @@ function renderResults(urls) {
   for (const url of urls) results.appendChild(buildResultNode(url));
 }
 
-function buildResultNode(url, { originalSrc } = {}) {
+function buildResultNode(url, { originalSrc, historyId } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'result';
 
@@ -970,6 +1099,26 @@ function buildResultNode(url, { originalSrc } = {}) {
   a.textContent = '打开原图';
 
   meta.appendChild(a);
+
+  // Add favorite button if historyId is available
+  if (historyId && currentUser) {
+    const favoriteBtn = document.createElement('button');
+    favoriteBtn.className = 'favorite-btn-main';
+    favoriteBtn.textContent = '★ 收藏';
+    favoriteBtn.dataset.historyId = historyId;
+    favoriteBtn.dataset.imageUrl = url;
+    favoriteBtn.addEventListener('click', () => handleAddFavorite(favoriteBtn, historyId, url));
+    meta.appendChild(favoriteBtn);
+
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'share-btn-main';
+    shareBtn.textContent = '分享到首页';
+    shareBtn.dataset.historyId = historyId;
+    shareBtn.dataset.imageUrl = url;
+    shareBtn.addEventListener('click', () => handleShareToGallery(shareBtn, historyId, url));
+    meta.appendChild(shareBtn);
+  }
+
   wrap.appendChild(img);
   wrap.appendChild(meta);
   return wrap;
@@ -993,7 +1142,7 @@ function setResultsLoading(loading) {
   results.insertBefore(el, results.firstChild);
 }
 
-function prependResults(urls, { originalSrc } = {}) {
+function prependResults(urls, { originalSrc, historyId } = {}) {
   const results = $('results');
   if (!results) return;
   if (!urls || urls.length === 0) return;
@@ -1005,7 +1154,7 @@ function prependResults(urls, { originalSrc } = {}) {
   const anchor = loadingEl ? loadingEl.nextSibling : results.firstChild;
 
   for (const url of urls) {
-    results.insertBefore(buildResultNode(url, { originalSrc }), anchor);
+    results.insertBefore(buildResultNode(url, { originalSrc, historyId }), anchor);
   }
 }
 
@@ -1027,7 +1176,7 @@ function setResultsLoadingText(loading) {
   results.insertBefore(el, results.firstChild);
 }
 
-function prependResultsText(urls) {
+function prependResultsText(urls, { historyId } = {}) {
   const results = $('resultsText');
   if (!results) return;
   if (!urls || urls.length === 0) return;
@@ -1039,7 +1188,7 @@ function prependResultsText(urls) {
   const anchor = loadingEl ? loadingEl.nextSibling : results.firstChild;
 
   for (const url of urls) {
-    results.insertBefore(buildResultNode(url), anchor);
+    results.insertBefore(buildResultNode(url, { historyId }), anchor);
   }
 }
 
@@ -1163,7 +1312,7 @@ async function handleSubmit() {
 
     setResultsLoading(false);
     const data = final.payload || {};
-    prependResults(data.outputImageUrls || [], { originalSrc });
+    prependResults(data.outputImageUrls || [], { originalSrc, historyId: data.historyId });
     if (data.quota) setAuthUi({ user: currentUser, quota: data.quota });
     setStatus(`完成：生成 ${((data.outputImageUrls || []).length)} 张图片。`);
   } catch (err) {
@@ -1237,7 +1386,7 @@ async function handleSubmitText() {
 
     setResultsLoadingText(false);
     const data = final.payload || {};
-    prependResultsText(data.outputImageUrls || []);
+    prependResultsText(data.outputImageUrls || [], { historyId: data.historyId });
     if (data.quota) setAuthUi({ user: currentUser, quota: data.quota });
     setStatusText(`完成：生成 ${((data.outputImageUrls || []).length)} 张图片。`);
   } catch (err) {
@@ -1288,6 +1437,78 @@ function handleClearText() {
   syncPresetUiText();
   setStatusText('');
   syncModelConstraints();
+}
+
+async function handleAddFavorite(btn, historyId, imageUrl) {
+  if (!currentUser) {
+    alert('请先登录');
+    return;
+  }
+
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '收藏中...';
+
+  try {
+    const resp = await fetch('/api/favorites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ historyId, imageUrl }),
+    });
+
+    if (resp.ok) {
+      btn.textContent = '✓ 已收藏';
+      btn.classList.add('favorited');
+    } else {
+      const data = await resp.json();
+      if (resp.status === 409) {
+        btn.textContent = '✓ 已收藏';
+        btn.classList.add('favorited');
+      } else {
+        throw new Error(data.error || '收藏失败');
+      }
+    }
+  } catch (err) {
+    btn.textContent = originalText;
+    btn.disabled = false;
+    alert('收藏失败: ' + (err?.message || String(err)));
+  }
+}
+
+async function handleShareToGallery(btn, historyId, imageUrl) {
+  if (!currentUser) {
+    alert('请先登录');
+    return;
+  }
+
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '分享中...';
+
+  try {
+    const resp = await fetch('/api/gallery/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ historyId, imageUrl }),
+    });
+
+    if (resp.ok) {
+      btn.textContent = '✓ 已分享';
+      btn.classList.add('shared');
+    } else {
+      const data = await resp.json();
+      if (resp.status === 409) {
+        btn.textContent = '✓ 已分享';
+        btn.classList.add('shared');
+      } else {
+        throw new Error(data.error || '分享失败');
+      }
+    }
+  } catch (err) {
+    btn.textContent = originalText;
+    btn.disabled = false;
+    alert('分享失败: ' + (err?.message || String(err)));
+  }
 }
 
 function setActiveTab(tab, { persist = true } = {}) {
@@ -1446,7 +1667,22 @@ function init() {
     });
   }
 
+  // Image comparison slider
+  const compareRange = $('compareRange');
+  if (compareRange) {
+    compareRange.addEventListener('input', () => {
+      const value = Number(compareRange.value);
+      const percent = isNaN(value) ? 0 : value;
+      updateImageComparison(percent);
+    });
+  }
+
   $('imageModalImg')?.addEventListener('load', () => {
+    captureModalBaseSize();
+    applyModalTransform();
+  });
+
+  $('imageModalImgOriginal')?.addEventListener('load', () => {
     captureModalBaseSize();
     applyModalTransform();
   });
@@ -1674,21 +1910,66 @@ function init() {
   $('clear').addEventListener('click', handleClear);
   $('submitText')?.addEventListener('click', handleSubmitText);
   $('clearText')?.addEventListener('click', handleClearText);
-  $('openLogin').addEventListener('click', () => {
-    setFormError('loginError', '');
-    openModal('loginModal');
-    $('loginUsername').focus();
-  });
-  $('openRegister').addEventListener('click', () => {
-    setFormError('registerError', '');
-    openModal('registerModal');
-    $('registerUsername').focus();
-  });
+
+  // 旧版按钮（如果存在）
+  if ($('openLogin')) {
+    $('openLogin').addEventListener('click', () => {
+      setFormError('loginError', '');
+      openModal('loginModal');
+      $('loginUsername').focus();
+    });
+  }
+  if ($('openRegister')) {
+    $('openRegister').addEventListener('click', () => {
+      setFormError('registerError', '');
+      openModal('registerModal');
+      $('registerUsername').focus();
+    });
+  }
+  if ($('logout')) {
+    $('logout').addEventListener('click', () => handleLogout());
+  }
+
   $('doLogin').addEventListener('click', () => handleLogin());
   $('doRegister').addEventListener('click', () => handleRegister());
-  $('logout').addEventListener('click', () => handleLogout());
-  $('guestLogin')?.addEventListener('click', () => $('openLogin')?.click());
-  $('guestRegister')?.addEventListener('click', () => $('openRegister')?.click());
+
+  // Guest login/register buttons
+  if ($('guestLogin')) {
+    $('guestLogin').addEventListener('click', () => {
+      setFormError('loginError', '');
+      openModal('loginModal');
+      $('loginUsername').focus();
+    });
+  }
+  if ($('guestRegister')) {
+    $('guestRegister').addEventListener('click', () => {
+      setFormError('registerError', '');
+      openModal('registerModal');
+      $('registerUsername').focus();
+    });
+  }
+
+  // 导航栏按钮事件绑定
+  const navLogin = $('navLogin');
+  const navRegister = $('navRegister');
+  const navLogout = $('navLogout');
+  if (navLogin) {
+    navLogin.addEventListener('click', () => {
+      setFormError('loginError', '');
+      openModal('loginModal');
+      $('loginUsername').focus();
+    });
+  }
+  if (navRegister) {
+    navRegister.addEventListener('click', () => {
+      setFormError('registerError', '');
+      openModal('registerModal');
+      $('registerUsername').focus();
+    });
+  }
+  if (navLogout) {
+    navLogout.addEventListener('click', () => handleLogout());
+  }
 
   const modelSelect = $('modelId');
   const modelSelectText = $('modelIdText');
