@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI 生图 - P了么</title>
+    <title>P了么 - AI 创作</title>
     <link rel="stylesheet" href="/styles.css?v=20260112" />
     <link rel="stylesheet" href="/styles-enhance.css" />
     <link rel="stylesheet" href="/home.css" />
@@ -19,7 +19,7 @@
         </div>
         <div class="nav-links">
           <a href="/" class="nav-link" target="_blank">首页</a>
-          <a href="/generate.html" class="nav-link active" target="_blank">AI 生图</a>
+          <a href="/generate.html" class="nav-link active" target="_blank">AI 创作</a>
           <a href="/profile.html" id="navProfile" class="nav-link" style="display:none" target="_blank">个人中心</a>
         </div>
         <div class="nav-actions">
@@ -194,6 +194,7 @@
               <select id="modelId" title="选择模型">
                 <option value="dashscope" selected>快速修图</option>
                 <option value="google-nano-banana-pro">精修（速度较慢，失败请重试）</option>
+                <option value="jimeng">即梦4.0（支持4K超清，速度适中）</option>
               </select>
             </div>
           </div>
@@ -354,6 +355,7 @@
                   <select id="modelIdText" title="选择模型">
                     <option value="dashscope" selected>快速生成</option>
                     <option value="google-nano-banana-pro">精修（速度较慢，失败请重试）</option>
+                    <option value="jimeng">即梦4.0（支持4K超清，速度适中）</option>
                   </select>
                 </div>
               </div>
@@ -421,7 +423,7 @@
       <!-- 右侧结果展示区 -->
       <div class="generate-right">
         <section class="card" data-auth="required">
-          <h2 class="h2">输出结果</h2>
+          <h2 class="h2">创作结果</h2>
           <div id="results" class="results"></div>
           <div id="resultsText" class="results"></div>
         </section>

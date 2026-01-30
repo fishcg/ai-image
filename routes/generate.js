@@ -92,7 +92,8 @@ function validateRequest(parsed) {
   const nRaw = Number(parsed?.n);
   const isNanoModel = modelId === 'google-nano-banana-pro';
   const isDashScope = modelId === 'dashscope';
-  const maxN = isNanoModel ? 1 : (isDashScope ? 4 : 6);
+  const isJiMeng = modelId === 'jimeng';
+  const maxN = isNanoModel ? 1 : (isDashScope ? 4 : (isJiMeng ? 15 : 6));
   const defaultN = isNanoModel ? 1 : 2;
   const n = Number.isFinite(nRaw) ? Math.max(1, Math.min(maxN, Math.floor(nRaw))) : defaultN;
   const images = Array.isArray(parsed?.images) ? parsed.images : [];
@@ -116,9 +117,11 @@ async function runGenerate({
   dc,
   ai,
   nanoai,
+  jimeng,
   monthlyLimit,
   providerTimeoutMsDashScope,
   providerTimeoutMsNanoAi,
+  providerTimeoutMsJiMeng,
 }) {
   const v = validateRequest(parsed);
   if (!v.ok) return { statusCode: v.statusCode, payload: v.payload };
@@ -158,13 +161,16 @@ async function runGenerate({
   }
 
   const baseDim = inputDims.length ? inputDims[inputDims.length - 1] : null;
-  const timeoutMs = modelId === 'google-nano-banana-pro' ? providerTimeoutMsNanoAi : providerTimeoutMsDashScope;
+  const timeoutMs = modelId === 'google-nano-banana-pro'
+    ? providerTimeoutMsNanoAi
+    : (modelId === 'jimeng' ? providerTimeoutMsJiMeng : providerTimeoutMsDashScope);
 
   try {
     const result = await provider.generate({
       axios,
       ai,
       nanoai,
+      jimeng,
       env: process.env,
       mode,
       prompt,
