@@ -110,7 +110,7 @@ async function submitTask({ axios, auth, prompt, imageUrls = [], scale = 0.5, wi
         ...signHeaders,
         'Content-Type': 'application/json',
       },
-      timeout: timeoutMs,
+      timeout: 30000, // 提交任务超时30秒
     });
 
     const data = response.data;
@@ -122,7 +122,9 @@ async function submitTask({ axios, auth, prompt, imageUrls = [], scale = 0.5, wi
       });
     }
 
-    return data.data.task_id;
+    const taskId = data.data.task_id;
+    console.log(`[JiMeng] Task submitted successfully, task_id: ${taskId}`);
+    return taskId;
   } catch (err) {
     if (err instanceof ProviderError) throw err;
     if (err?.response) {
@@ -143,7 +145,7 @@ async function submitTask({ axios, auth, prompt, imageUrls = [], scale = 0.5, wi
 /**
  * 查询即梦任务结果
  */
-async function getTaskResult({ axios, auth, taskId, returnUrl = true, timeoutMs, maxRetries = 30, retryInterval = 2000 }) {
+async function getTaskResult({ axios, auth, taskId, returnUrl = true, timeoutMs, maxRetries = 90, retryInterval = 2000 }) {
   const apiUrl = 'https://visual.volcengineapi.com?Action=CVSync2AsyncGetResult&Version=2022-08-31';
 
   const reqJson = JSON.stringify({
@@ -166,7 +168,7 @@ async function getTaskResult({ axios, auth, taskId, returnUrl = true, timeoutMs,
           ...signHeaders,
           'Content-Type': 'application/json',
         },
-        timeout: timeoutMs,
+        timeout: 30000, // 单次查询超时30秒
       });
 
       const data = response.data;
@@ -182,6 +184,7 @@ async function getTaskResult({ axios, auth, taskId, returnUrl = true, timeoutMs,
 
       if (status === 'done') {
         const imageUrls = data.data?.image_urls || [];
+        console.log(`[JiMeng] Task ${taskId} completed, got ${imageUrls.length} images`);
         return { outputImageUrls: imageUrls, raw: data };
       }
 
@@ -193,6 +196,9 @@ async function getTaskResult({ axios, auth, taskId, returnUrl = true, timeoutMs,
       }
 
       // 任务还在处理中，等待后重试
+      if (retries % 10 === 0) {
+        console.log(`[JiMeng] Task ${taskId} status: ${status}, retry ${retries}/${maxRetries}`);
+      }
       await new Promise((resolve) => setTimeout(resolve, retryInterval));
       retries++;
     } catch (err) {
@@ -267,14 +273,14 @@ async function generate({ axios, jimeng, env, mode, prompt, n, hd, aspectRatio, 
     timeoutMs,
   });
 
-  // 查询结果
+  // 查询结果（最多等待3分钟）
   const result = await getTaskResult({
     axios,
     auth,
     taskId,
     returnUrl: true,
     timeoutMs,
-    maxRetries: 30,
+    maxRetries: 180,
     retryInterval: 2000,
   });
 
