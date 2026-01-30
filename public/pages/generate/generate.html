@@ -4,36 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>P了么 - AI 创作</title>
-    <link rel="stylesheet" href="/styles.css?v=20260112" />
-    <link rel="stylesheet" href="/styles-enhance.css" />
-    <link rel="stylesheet" href="/home.css" />
-    <link rel="stylesheet" href="/generate-layout.css" />
+    <link rel="stylesheet" href="/common/styles.css?v=20260112" />
+    <link rel="stylesheet" href="/common/styles-enhance.css" />
+    <link rel="stylesheet" href="/pages/home/home.css" />
+    <link rel="stylesheet" href="/pages/generate/generate-layout.css" />
   </head>
   <body>
-    <!-- 导航栏 -->
-    <nav class="navbar">
-      <div class="nav-container">
-        <div class="nav-brand">
-          <h1 class="nav-logo">P了么</h1>
-          <span class="nav-tagline"></span>
-        </div>
-        <div class="nav-links">
-          <a href="/" class="nav-link" target="_blank">首页</a>
-          <a href="/generate.html" class="nav-link active" target="_blank">AI 创作</a>
-          <a href="/profile.html" id="navProfile" class="nav-link" style="display:none" target="_blank">个人中心</a>
-        </div>
-        <div class="nav-actions">
-          <div id="navUser" class="nav-user" style="display:none">
-            <span id="navUsername"></span>
-            <button id="navLogout" class="nav-btn secondary">退出</button>
-          </div>
-          <div id="navGuest" class="nav-guest">
-            <button id="navLogin" class="nav-btn secondary">登录</button>
-            <button id="navRegister" class="nav-btn primary">注册</button>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <!-- 导航栏容器 -->
+    <div id="navbar-container"></div>
 
     <!-- 用户信息栏 -->
     <div style="max-width:1400px;margin:0 auto;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.1)">
@@ -46,64 +24,10 @@
     </div>
 
     <main class="generate-layout" style="margin-top:0">
-      <!-- 模态框 -->
-      <div id="loginModal" class="modal" hidden>
-        <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-          <div class="modalHeader">
-            <div id="loginTitle" class="modalTitle">登录</div>
-            <button class="iconBtn" type="button" data-close-modal="loginModal" aria-label="关闭">×</button>
-          </div>
-          <div class="modalBody">
-            <div class="row grid2">
-              <div>
-                <label class="label" for="loginUsername">用户名</label>
-                <input id="loginUsername" type="text" autocomplete="username" placeholder="a-z0-9._-" />
-              </div>
-              <div>
-                <label class="label" for="loginPassword">密码</label>
-                <input id="loginPassword" type="password" autocomplete="current-password" placeholder="至少 6 位" />
-              </div>
-            </div>
-            <div id="loginError" class="formError" hidden></div>
-          </div>
-          <div class="modalFooter">
-            <button class="secondary" type="button" data-close-modal="loginModal">取消</button>
-            <button id="doLogin" class="primary" type="button">登录</button>
-          </div>
-        </div>
-      </div>
+      <!-- 模态框容器（登录/注册） -->
+      <div id="modals-container"></div>
 
-      <div id="registerModal" class="modal" hidden>
-        <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="registerTitle">
-          <div class="modalHeader">
-            <div id="registerTitle" class="modalTitle">注册</div>
-            <button class="iconBtn" type="button" data-close-modal="registerModal" aria-label="关闭">×</button>
-          </div>
-          <div class="modalBody">
-            <div class="row grid2">
-              <div>
-                <label class="label" for="registerUsername">用户名</label>
-                <input id="registerUsername" type="text" autocomplete="username" placeholder="a-z0-9._-" />
-              </div>
-              <div>
-                <label class="label" for="registerPassword">密码</label>
-                <input id="registerPassword" type="password" autocomplete="new-password" placeholder="至少 6 位" />
-              </div>
-            </div>
-            <div class="row">
-              <label class="label" for="inviteCode">注册码</label>
-              <input id="inviteCode" type="text" autocomplete="off" placeholder="请输入注册码" />
-              <div class="hint">注册需要有效的注册码。</div>
-            </div>
-            <div id="registerError" class="formError" hidden></div>
-          </div>
-          <div class="modalFooter">
-            <button class="secondary" type="button" data-close-modal="registerModal">取消</button>
-            <button id="doRegister" class="primary" type="button">注册</button>
-          </div>
-        </div>
-      </div>
-
+      <!-- 图片预览模态框 -->
       <div id="imageModal" class="modal" hidden>
         <div class="modalCard imageModalCard" role="dialog" aria-modal="true" aria-labelledby="imageTitle">
           <div class="modalHeader">
@@ -171,6 +95,7 @@
           </div>
         </div>
       </div>
+
 
       <!-- 左侧工具栏 -->
       <div class="generate-left">
@@ -430,6 +355,15 @@
       </div>
     </main>
 
-    <script src="/app.js?v=20260112"></script>
+    <!-- 公共脚本 -->
+    <script src="/common/components.js"></script>
+    <script src="/common/auth.js"></script>
+    <script>
+      // 初始化组件
+      Components.init({ activePage: 'generate' });
+      // 初始化认证
+      Auth.init();
+    </script>
+    <script src="/pages/generate/app.js?v=20260112"></script>
   </body>
 </html>

@@ -107,6 +107,33 @@ UI 可切换到 `Google Nano banana pro`（通过 NanoAI 网关）。
 - `GET /api/me`
 - `POST /api/generate` `{ images, prompt, n }`（需登录，且有额度）
 
+## 项目结构
+
+### 页面目录结构
+
+```
+public/
+├── common/                    # 公共资源
+│   ├── styles.css            # 全局样式
+│   ├── styles-enhance.css    # 全局样式增强
+│   ├── components.js         # 公共组件（导航栏、模态框）
+│   └── auth.js               # 认证逻辑
+├── pages/                     # 页面目录
+│   ├── home/                 # 首页
+│   │   ├── index.html
+│   │   ├── home.css
+│   │   └── home.js
+│   ├── generate/             # 生成页
+│   │   ├── generate.html
+│   │   ├── generate-layout.css
+│   │   └── app.js
+│   └── profile/              # 个人中心
+│       ├── profile.html
+│       ├── profile.css
+│       ├── profile-enhance.css
+│       └── profile.js
+```
+
 ## 安全提示
 
 - `config.js` 包含密钥/账号信息，已在 `.gitignore` 中忽略，请勿提交。

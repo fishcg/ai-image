@@ -4,35 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>P了么 - AI 图片生成与分享</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="/styles-enhance.css" />
-    <link rel="stylesheet" href="/home.css" />
+    <link rel="stylesheet" href="/common/styles.css" />
+    <link rel="stylesheet" href="/common/styles-enhance.css" />
+    <link rel="stylesheet" href="/pages/home/home.css" />
   </head>
   <body>
-    <!-- 导航栏 -->
-    <nav class="navbar">
-      <div class="nav-container">
-        <div class="nav-brand">
-          <h1 class="nav-logo">P了么</h1>
-          <span class="nav-tagline"></span>
-        </div>
-        <div class="nav-links">
-          <a href="/" class="nav-link active" target="_blank">首页</a>
-          <a href="/generate.html" class="nav-link" target="_blank">AI 创作</a>
-          <a href="/profile.html" id="navProfile" class="nav-link" style="display:none" target="_blank">个人中心</a>
-        </div>
-        <div class="nav-actions">
-          <div id="navUser" class="nav-user" style="display:none">
-            <span id="navUsername"></span>
-            <button id="navLogout" class="nav-btn secondary">退出</button>
-          </div>
-          <div id="navGuest" class="nav-guest">
-            <button id="navLogin" class="nav-btn secondary">登录</button>
-            <button id="navRegister" class="nav-btn primary">注册</button>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <!-- 导航栏容器 -->
+    <div id="navbar-container"></div>
 
     <!-- Banner 区域 -->
     <section class="hero">
@@ -40,7 +18,7 @@
         <h1 class="hero-title">探索 AI 创作的无限可能</h1>
         <p class="hero-subtitle">使用先进的 AI 技术，将您的想象力转化为惊艳的视觉作品</p>
         <div class="hero-actions">
-          <a href="/generate.html" class="hero-btn primary">开始创作</a>
+          <a href="/pages/generate/generate.html" class="hero-btn primary">开始创作</a>
           <button id="heroExplore" class="hero-btn secondary">浏览作品</button>
         </div>
       </div>
@@ -78,7 +56,7 @@
           <circle cx="45" cy="40" r="5" fill="currentColor" opacity="0.3"/>
         </svg>
         <p>还没有作品，快去创作第一张吧！</p>
-        <a href="/generate.html" class="empty-action-btn">开始创作</a>
+        <a href="/pages/generate/generate.html" class="empty-action-btn">开始创作</a>
       </div>
     </main>
 
@@ -130,11 +108,14 @@
       </div>
     </div>
 
+    <!-- 模态框容器 -->
+    <div id="modals-container"></div>
+
     <!-- 底部悬浮操作栏 -->
     <div class="floating-action-bar" id="floatingActionBar">
       <div class="floating-action-content">
         <div class="floating-action-buttons">
-          <a href="/generate.html" class="floating-action-btn primary" id="floatingGenerate">
+          <a href="/pages/generate/generate.html" class="floating-action-btn primary" id="floatingGenerate">
             <span class="floating-action-btn-icon">🎨</span>
             <span>开始创作</span>
           </a>
@@ -142,6 +123,15 @@
       </div>
     </div>
 
-    <script src="/home.js"></script>
+    <!-- 公共脚本 -->
+    <script src="/common/components.js"></script>
+    <script src="/common/auth.js"></script>
+    <script>
+      // 初始化组件
+      Components.init({ activePage: 'home' });
+      // 初始化认证
+      Auth.init();
+    </script>
+    <script src="/pages/home/home.js"></script>
   </body>
 </html>
