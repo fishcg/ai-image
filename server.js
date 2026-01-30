@@ -8,7 +8,7 @@ const generateRoutes = require('./routes/generate');
 const historyRoutes = require('./routes/history');
 const favoritesRoutes = require('./routes/favorites');
 const galleryRoutes = require('./routes/gallery');
-const { http: httpConfig, dc, ai, nanoai, mysql: mysqlConfig, auth: authConfig } = require('./config');
+const { http: httpConfig, dc, ai, nanoai, jimeng, mysql: mysqlConfig, auth: authConfig } = require('./config');
 
 const PORT = Number(process.env.PORT || httpConfig?.port || 7992);
 const MONTHLY_LIMIT = Number(process.env.MONTHLY_LIMIT || 200);
@@ -39,6 +39,7 @@ const pool = getPool(getDbConfig());
 const publicDir = path.join(__dirname, 'public');
 const providerTimeoutMsDashScope = Number(process.env.DASHSCOPE_TIMEOUT || ai?.TIMEOUT || 5 * 60 * 1000);
 const providerTimeoutMsNanoAi = Number(process.env.NANOAI_TIMEOUT || nanoai?.timeout || 5 * 60 * 1000);
+const providerTimeoutMsJiMeng = Number(process.env.JIMENG_TIMEOUT || jimeng?.TIMEOUT || 3 * 60 * 1000);
 const generateRequestTimeoutMs = Number(process.env.GENERATE_REQUEST_TIMEOUT || 5 * 60 * 1000);
 
 const server = http.createServer(async (req, res) => {
@@ -73,9 +74,11 @@ const server = http.createServer(async (req, res) => {
       dc,
       ai,
       nanoai,
+      jimeng,
       monthlyLimit: MONTHLY_LIMIT,
       providerTimeoutMsDashScope,
       providerTimeoutMsNanoAi,
+      providerTimeoutMsJiMeng,
     });
     return;
   }

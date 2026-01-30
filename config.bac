@@ -51,4 +51,10 @@ const nanoai = {
   timeout: 120000,
 };
 
+const jimeng = {
+  ACCESS_KEY_ID: 'your_jimeng_access_key_id',
+  SECRET_ACCESS_KEY: 'your_jimeng_secret_access_key',
+  TIMEOUT: 300000
+};
+
 module.exports = { http, dc, ai, aliyun, mysql, auth, nanoai };
