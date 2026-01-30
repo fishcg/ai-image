@@ -2215,3 +2215,249 @@ function appendPresetText(snippet) {
   }
   syncPresetUiText();
 }
+
+// ============================================================
+// AI 辅助功能
+// ============================================================
+
+/**
+ * Prompt 增强功能
+ * 将用户输入的简单描述通过 AI 扩展为详细的 prompt
+ */
+async function enhancePromptWithAI(mode = 'img2img') {
+  const promptEl = mode === 'txt2img' ? $('promptText') : $('prompt');
+  const userInput = promptEl.value.trim();
+
+  if (!userInput) {
+    alert('请先输入一些描述');
+    return;
+  }
+
+  // 显示加载状态
+  const btnId = mode === 'txt2img' ? 'enhancePromptText' : 'enhancePrompt';
+  const btn = document.getElementById(btnId);
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ai-loading-spinner"></span> 增强中...';
+
+  // 禁用输入框
+  promptEl.disabled = true;
+  promptEl.style.opacity = '0.6';
+
+  try {
+    const response = await fetch('/api/ai/enhance-prompt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userInput: userInput,
+        mode: mode
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Prompt 增强失败');
+    }
+
+    const result = await response.json();
+
+    // 更新 prompt 输入框
+    promptEl.value = result.enhancedPrompt;
+
+    // 显示成功提示
+    showToast(`✅ Prompt 已增强！${result.tags && result.tags.length > 0 ? '\n标签: ' + result.tags.join(', ') : ''}`, 'success');
+  } catch (error) {
+    console.error('Enhance prompt error:', error);
+    showToast('❌ Prompt 增强失败: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+
+    // 恢复输入框
+    promptEl.disabled = false;
+    promptEl.style.opacity = '1';
+  }
+}
+
+/**
+ * 风格提取功能
+ * 从上传的图片中提取风格并生成相应的 prompt
+ */
+async function extractStyleFromImage() {
+  // 检查是否有上传的图片
+  if (!selectedFiles || selectedFiles.length === 0) {
+    alert('请先上传图片');
+    return;
+  }
+
+  const btn = document.getElementById('extractStyle');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ai-loading-spinner"></span> 分析中...';
+
+  // 禁用输入框
+  const promptEl = $('prompt');
+  promptEl.disabled = true;
+  promptEl.style.opacity = '0.6';
+
+  try {
+    // 读取第一张图片为 base64
+    const file = selectedFiles[0];
+    const reader = new FileReader();
+
+    const base64Data = await new Promise((resolve, reject) => {
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    // 调用风格提取 API (使用 data URL)
+    const response = await fetch('/api/ai/extract-style', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        imageUrl: base64Data
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || '风格提取失败');
+    }
+
+    const result = await response.json();
+
+    // 更新 prompt 输入框
+    if (result.suggestedPrompt) {
+      promptEl.value = result.suggestedPrompt;
+    }
+
+    // 显示详细的风格描述
+    let message = '✅ 风格提取成功！\n\n';
+    if (result.styleDescription) {
+      message += `风格描述:\n${result.styleDescription}\n\n`;
+    }
+    if (result.keywords && result.keywords.length > 0) {
+      message += `关键词: ${result.keywords.join(', ')}`;
+    }
+
+    showToast(message, 'success');
+  } catch (error) {
+    console.error('Extract style error:', error);
+    showToast('❌ 风格提取失败: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+
+    // 恢复输入框
+    promptEl.disabled = false;
+    promptEl.style.opacity = '1';
+  }
+}
+
+/**
+ * 显示提示消息
+ */
+function showToast(message, type = 'info') {
+  // 创建 toast 元素
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    padding: 16px 24px;
+    background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10000;
+    max-width: 400px;
+    white-space: pre-wrap;
+    animation: slideIn 0.3s ease-out;
+  `;
+
+  document.body.appendChild(toast);
+
+  // 3 秒后自动移除
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease-out';
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 300);
+  }, 3000);
+}
+
+// 添加动画样式
+if (!document.getElementById('toast-animations')) {
+  const style = document.createElement('style');
+  style.id = 'toast-animations';
+  style.textContent = `
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+    }
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    .ai-loading-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// 绑定 AI 辅助按钮事件
+document.addEventListener('DOMContentLoaded', function() {
+  // 修图模式 - Prompt 增强
+  const enhancePromptBtn = document.getElementById('enhancePrompt');
+  if (enhancePromptBtn) {
+    enhancePromptBtn.addEventListener('click', () => enhancePromptWithAI('img2img'));
+  }
+
+  // 修图模式 - 风格提取
+  const extractStyleBtn = document.getElementById('extractStyle');
+  if (extractStyleBtn) {
+    extractStyleBtn.addEventListener('click', extractStyleFromImage);
+  }
+
+  // 生图模式 - Prompt 增强
+  const enhancePromptTextBtn = document.getElementById('enhancePromptText');
+  if (enhancePromptTextBtn) {
+    enhancePromptTextBtn.addEventListener('click', () => enhancePromptWithAI('txt2img'));
+  }
+});

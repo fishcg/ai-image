@@ -8,6 +8,7 @@ const generateRoutes = require('./routes/generate');
 const historyRoutes = require('./routes/history');
 const favoritesRoutes = require('./routes/favorites');
 const galleryRoutes = require('./routes/gallery');
+const aiAssistantRoutes = require('./routes/ai-assistant');
 const { http: httpConfig, dc, ai, nanoai, jimeng, mysql: mysqlConfig, auth: authConfig } = require('./config');
 
 const PORT = Number(process.env.PORT || httpConfig?.port || 7992);
@@ -117,6 +118,12 @@ const server = http.createServer(async (req, res) => {
     const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
     await galleryRoutes.likeGalleryImage({ req, res, pool, body });
     return;
+  }
+
+  // AI 辅助功能路由
+  if (url.pathname.startsWith('/api/ai/')) {
+    const handled = await aiAssistantRoutes.handler({ req, res, ai });
+    if (handled !== false) return;
   }
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {

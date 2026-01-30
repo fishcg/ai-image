@@ -170,6 +170,14 @@
 
         <div class="row">
           <label class="label" for="prompt">Prompt</label>
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <button id="enhancePrompt" class="secondary" type="button" style="flex: 1;" title="使用 AI 自动增强 Prompt">
+              ✨ 一键美化
+            </button>
+            <button id="extractStyle" class="secondary" type="button" style="flex: 1;" title="从上传的图片提取风格">
+              🎨 提取风格
+            </button>
+          </div>
           <textarea id="prompt" rows="5" placeholder="描述你希望生成的效果…"></textarea>
           <div class="effectGroups">
             <div class="effectGroup">
@@ -309,6 +317,11 @@
 
           <div class="row">
             <label class="label" for="promptText">Prompt</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <button id="enhancePromptText" class="secondary" type="button" style="flex: 1;" title="使用 AI 自动增强 Prompt">
+                ✨ 一键美化
+              </button>
+            </div>
             <textarea id="promptText" rows="5" placeholder="描述你希望生成的画面…"></textarea>
             <div class="effectGroups">
               <div class="effectGroup">
