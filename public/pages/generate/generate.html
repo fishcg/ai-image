@@ -78,7 +78,11 @@
               <input id="paintZoomRange" type="range" min="100" max="300" value="100" step="5" />
               <span id="paintZoomValue" class="badge">100%</span>
               <div class="paintTools">
-                <span class="muted">画笔</span>
+                <div class="paintModeToggle">
+                  <button id="paintModeDraw" class="secondary active" type="button">涂抹</button>
+                  <button id="paintModeMask" class="secondary" type="button">蒙版</button>
+                </div>
+                <span id="paintColorWrap" class="muted">画笔</span>
                 <input id="paintColor" type="color" value="#ff0000" title="颜色" />
                 <span class="muted">羽化</span>
                 <input id="paintFeather" type="range" min="0" max="100" value="40" step="1" />
@@ -87,6 +91,7 @@
                 <span id="paintSizeValue" class="badge">28</span>
                 <button id="paintUndo" class="secondary" type="button">撤销</button>
                 <button id="paintReset" class="secondary" type="button">重置</button>
+                <button id="clearMask" class="secondary" type="button" hidden>清除蒙版</button>
               </div>
             </div>
             <button id="paintPrev" class="secondary" type="button">上一张</button>

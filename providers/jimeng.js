@@ -194,11 +194,6 @@ async function getTaskResult({ axios, auth, taskId, returnUrl = true, timeoutMs,
           payload: { error: `JiMeng task ${status}` },
         });
       }
-
-      // 任务还在处理中，等待后重试
-      if (retries % 10 === 0) {
-        console.log(`[JiMeng] Task ${taskId} status: ${status}, retry ${retries}/${maxRetries}`);
-      }
       await new Promise((resolve) => setTimeout(resolve, retryInterval));
       retries++;
     } catch (err) {

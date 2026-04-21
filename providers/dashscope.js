@@ -95,7 +95,7 @@ function sizeForWanT2i(aspectRatio) {
   return map[r] || '1280*1280';
 }
 
-async function generate({ axios, ai, env, mode, prompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
+async function generate({ axios, ai, env, mode, prompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs, maskUrl }) {
   const apiKey = env.DASHSCOPE_API_KEY || ai?.API_KEY;
   const isTxt2Img = String(mode || 'img2img') === 'txt2img';
   const apiUrl = (isTxt2Img ? (env.DASHSCOPE_T2I_URL || ai?.T2I_URL) : null) || env.DASHSCOPE_URL || ai?.URL;
@@ -113,13 +113,20 @@ async function generate({ axios, ai, env, mode, prompt, n, hd, aspectRatio, uplo
         ? buildDashScopeSize(baseDim, { maxSide: 2048, multiple: 64, forceMaxSide: hd })
         : (sizeFromAspectRatioEdit(aspectRatio, hd) || (hd ? '2048*2048' : null)));
 
+  const hasMask = !isTxt2Img && maskUrl;
+  const contentImages = isTxt2Img ? [] : uploadedUrls.map((url) => ({ image: url }));
+  const contentMask = hasMask ? [{ image: maskUrl }] : [];
+  const promptText = hasMask
+    ? `请根据蒙版区域（白色部分）进行局部重绘：${prompt}`
+    : prompt;
+
   const payload = {
     model,
     input: {
       messages: [
         {
           role: 'user',
-          content: [...(isTxt2Img ? [] : uploadedUrls.map((url) => ({ image: url }))), { text: prompt }],
+          content: [...contentImages, ...contentMask, { text: promptText }],
         },
       ],
     },

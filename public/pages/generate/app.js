@@ -98,7 +98,7 @@ const presets = {
   '降摩尔纹':
     '减少衣物/背景网格摩尔纹（moire reduction），纹理更自然，保持清晰度不过度涂抹。',
   '固定人物':
-    '人物动作和比例保持不变',
+    '人物动作、表情和比例保持不变',
 };
 
 function $(id) {
@@ -120,6 +120,10 @@ let paintGallery = null;
 let paintDrag = null;
 const editedImageDataUrls = new Map(); // fileKey -> dataUrl
 const originalImageDataUrls = new Map(); // fileKey -> dataUrl (cached)
+const maskDataUrls = new Map(); // fileKey -> dataUrl (black/white mask)
+let paintMode = 'draw'; // 'draw' or 'mask'
+let maskCanvas = null; // offscreen canvas for mask data
+let maskCtx = null;
 let isSpaceDown = false;
 
 function isNanoModel(modelId) {
@@ -167,6 +171,9 @@ function closeModal(id) {
     modalPaint = null;
     paintDrag = null;
     paintGallery = null;
+    maskCanvas = null;
+    maskCtx = null;
+    setPaintMode('draw');
   }
   if (id === 'imageModal') {
     modalDrag = null;
@@ -470,6 +477,125 @@ function syncPaintUi() {
   if (badge) badge.textContent = `${getPaintSize()}`;
 }
 
+function setPaintMode(mode) {
+  paintMode = mode === 'mask' ? 'mask' : 'draw';
+  const drawBtn = $('paintModeDraw');
+  const maskBtn = $('paintModeMask');
+  const colorWrap = $('paintColorWrap');
+  const colorInput = $('paintColor');
+  const clearMaskBtn = $('clearMask');
+  if (drawBtn) drawBtn.classList.toggle('active', paintMode === 'draw');
+  if (maskBtn) maskBtn.classList.toggle('active', paintMode === 'mask');
+  if (colorWrap) colorWrap.hidden = paintMode === 'mask';
+  if (colorInput) colorInput.hidden = paintMode === 'mask';
+  if (clearMaskBtn) clearMaskBtn.hidden = paintMode !== 'mask';
+  // Redraw mask overlay when switching to mask mode
+  if (paintMode === 'mask') redrawMaskOverlay();
+  else removeMaskOverlay();
+}
+
+function ensureMaskCanvas(w, h) {
+  if (!maskCanvas || maskCanvas.width !== w || maskCanvas.height !== h) {
+    maskCanvas = document.createElement('canvas');
+    maskCanvas.width = w;
+    maskCanvas.height = h;
+    maskCtx = maskCanvas.getContext('2d');
+    // Fill black background (black = keep, white = repaint)
+    maskCtx.fillStyle = '#000000';
+    maskCtx.fillRect(0, 0, w, h);
+  }
+  return { canvas: maskCanvas, ctx: maskCtx };
+}
+
+function stampMaskBrush(x, y, radius, featherPct) {
+  if (!maskCtx) return;
+  const r = Math.max(1, Number(radius) || 1);
+  const f = Math.max(0, Math.min(100, Number(featherPct) || 0)) / 100;
+  const inner = Math.max(0, r * (1 - f));
+  const grad = maskCtx.createRadialGradient(x, y, inner, x, y, r);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  maskCtx.fillStyle = grad;
+  maskCtx.beginPath();
+  maskCtx.arc(x, y, r, 0, Math.PI * 2);
+  maskCtx.fill();
+}
+
+function redrawMaskOverlay() {
+  const canvas = $('paintCanvas');
+  if (!canvas || !maskCanvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const key = modalPaint?.fileKey;
+  if (!key) return;
+  const src = editedImageDataUrls.get(key) || originalImageDataUrls.get(key);
+  if (!src) return;
+  const img = new Image();
+  img.onload = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    drawMaskOverlayOnCanvas(ctx, canvas.width, canvas.height);
+  };
+  img.src = src;
+}
+
+function drawMaskOverlayOnCanvas(ctx, w, h) {
+  if (!maskCanvas) return;
+  // Create overlay: red where mask is white, transparent where black
+  const overlay = document.createElement('canvas');
+  overlay.width = w;
+  overlay.height = h;
+  const oCtx = overlay.getContext('2d');
+  oCtx.drawImage(maskCanvas, 0, 0, w, h);
+  const oData = oCtx.getImageData(0, 0, w, h);
+  for (let i = 0; i < oData.data.length; i += 4) {
+    const brightness = oData.data[i]; // R channel from mask (white = 255)
+    oData.data[i] = 255;     // R
+    oData.data[i + 1] = 0;   // G
+    oData.data[i + 2] = 0;   // B
+    oData.data[i + 3] = Math.round(brightness * 0.5); // alpha proportional to mask
+  }
+  oCtx.putImageData(oData, 0, 0);
+  ctx.drawImage(overlay, 0, 0);
+}
+
+function removeMaskOverlay() {
+  const canvas = $('paintCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const key = modalPaint?.fileKey;
+  if (!key) return;
+  const src = editedImageDataUrls.get(key) || originalImageDataUrls.get(key);
+  if (!src) return;
+  const img = new Image();
+  img.onload = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
+  img.src = src;
+}
+
+function commitMaskData() {
+  const key = modalPaint?.fileKey;
+  if (!key || !maskCanvas) return;
+  maskDataUrls.set(key, maskCanvas.toDataURL('image/png'));
+}
+
+function clearMask() {
+  if (maskCanvas && maskCtx) {
+    maskCtx.fillStyle = '#000000';
+    maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+  }
+  const key = modalPaint?.fileKey;
+  if (key) maskDataUrls.delete(key);
+  if (paintMode === 'mask') redrawMaskOverlay();
+}
+
+function isMaskSupported(modelId) {
+  return modelId === 'dashscope';
+}
+
 function hexToRgb(hex) {
   const s = String(hex || '').trim();
   const m = /^#?([0-9a-f]{6})$/i.exec(s);
@@ -563,20 +689,40 @@ function commitPaintedImage() {
   const key = modalPaint?.fileKey;
   const canvas = $('paintCanvas');
   if (!key || !canvas) return;
-  const dataUrl = canvas.toDataURL('image/png');
-  editedImageDataUrls.set(key, dataUrl);
-  updatePreviewThumbSrc(key, dataUrl);
+  // In mask mode, we need to save the underlying image without the red overlay
+  if (paintMode === 'mask') {
+    // The editedImageDataUrls already has the clean image, just commit mask
+    commitMaskData();
+  } else {
+    const dataUrl = canvas.toDataURL('image/png');
+    editedImageDataUrls.set(key, dataUrl);
+    updatePreviewThumbSrc(key, dataUrl);
+  }
 }
 
 function undoPaint() {
   const canvas = $('paintCanvas');
   const ctx = canvas?.getContext?.('2d');
-  if (!canvas || !ctx || !modalPaint?.undo) return;
-  ctx.putImageData(modalPaint.undo, 0, 0);
-  modalPaint.undo = null;
+  if (!canvas || !ctx) return;
+  if (paintMode === 'mask') {
+    if (modalPaint?.maskUndo && maskCtx) {
+      maskCtx.putImageData(modalPaint.maskUndo, 0, 0);
+      modalPaint.maskUndo = null;
+      if (modalPaint.undo) {
+        ctx.putImageData(modalPaint.undo, 0, 0);
+        modalPaint.undo = null;
+      }
+      commitMaskData();
+      redrawMaskOverlay();
+    }
+  } else {
+    if (!modalPaint?.undo) return;
+    ctx.putImageData(modalPaint.undo, 0, 0);
+    modalPaint.undo = null;
+    commitPaintedImage();
+  }
   const undoBtn = $('paintUndo');
   if (undoBtn) undoBtn.disabled = true;
-  commitPaintedImage();
 }
 
 function getPaintZoom() {
@@ -756,6 +902,22 @@ async function showPaintGalleryIndex(index) {
   if (!ctx) return;
   ctx.clearRect(0, 0, w, h);
   ctx.drawImage(img, 0, 0, w, h);
+
+  // Initialize mask canvas for this image
+  ensureMaskCanvas(w, h);
+  // Restore existing mask if available
+  if (maskDataUrls.has(key)) {
+    const maskImg = new Image();
+    maskImg.onload = () => {
+      maskCtx.clearRect(0, 0, w, h);
+      maskCtx.drawImage(maskImg, 0, 0, w, h);
+      if (paintMode === 'mask') drawMaskOverlayOnCanvas(ctx, w, h);
+    };
+    maskImg.src = maskDataUrls.get(key);
+  } else {
+    maskCtx.fillStyle = '#000000';
+    maskCtx.fillRect(0, 0, w, h);
+  }
 
   const t = $('paintTitle');
   if (t) t.textContent = item.title || '原图涂抹';
@@ -1277,10 +1439,23 @@ async function handleSubmit() {
     const finalPrompt = orderHint ? `${orderHint}\n\n${prompt}` : prompt;
     const hd = Boolean($('hd')?.checked);
 
+    // Check if there's a mask for the base image (last in ordered list = the base)
+    let mask = null;
+    if (modelId === 'dashscope') {
+      const baseFile = files[clampInt(baseIndex, 0, files.length - 1, 0)];
+      const baseKey = baseFile ? fileKey(baseFile) : '';
+      if (baseKey && maskDataUrls.has(baseKey)) {
+        mask = maskDataUrls.get(baseKey);
+      }
+    }
+
+    const body = { images: orderedImages, prompt: finalPrompt, n, hd, modelId };
+    if (mask) body.mask = mask;
+
     const resp = await fetch('/api/generate?async=1', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images: orderedImages, prompt: finalPrompt, n, hd, modelId }),
+      body: JSON.stringify(body),
     });
 
     const start = await resp.json().catch(() => ({}));
@@ -1410,6 +1585,7 @@ function handleClear() {
   selectedFiles = [];
   editedImageDataUrls.clear();
   originalImageDataUrls.clear();
+  maskDataUrls.clear();
   modalPaint = null;
   updateFileInfo([]);
   $('baseIndexWrap').hidden = true;
@@ -1789,12 +1965,24 @@ function init() {
       e.preventDefault();
       const { x, y } = canvasPointFromEvent(e, canvasEl);
 
-      if (modalPaint && !modalPaint.undo) {
-        try {
-          modalPaint.undo = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
-        } catch {}
-        const undoBtn = $('paintUndo');
-        if (undoBtn) undoBtn.disabled = !modalPaint.undo;
+      if (paintMode === 'mask') {
+        // Save undo state for mask
+        if (modalPaint && !modalPaint.maskUndo && maskCtx) {
+          try {
+            modalPaint.maskUndo = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+            modalPaint.undo = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+          } catch {}
+          const undoBtn = $('paintUndo');
+          if (undoBtn) undoBtn.disabled = false;
+        }
+      } else {
+        if (modalPaint && !modalPaint.undo) {
+          try {
+            modalPaint.undo = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+          } catch {}
+          const undoBtn = $('paintUndo');
+          if (undoBtn) undoBtn.disabled = !modalPaint.undo;
+        }
       }
 
       modalPaint = modalPaint || {};
@@ -1809,8 +1997,15 @@ function init() {
 
       const size = getPaintSize();
       const feather = getPaintFeather();
-      const rgba = getPaintColorRgba();
-      stampBrush(ctx, x, y, size, feather, rgba);
+      if (paintMode === 'mask') {
+        ensureMaskCanvas(canvasEl.width, canvasEl.height);
+        stampMaskBrush(x, y, size, feather);
+        // Redraw: original image + mask overlay
+        redrawMaskOverlay();
+      } else {
+        const rgba = getPaintColorRgba();
+        stampBrush(ctx, x, y, size, feather, rgba);
+      }
     });
 
     canvasEl.addEventListener('pointermove', (e) => {
@@ -1825,7 +2020,6 @@ function init() {
 
       const size = getPaintSize();
       const feather = getPaintFeather();
-      const rgba = getPaintColorRgba();
       const radius = size;
       const spacing = Math.max(3, radius * 0.35);
 
@@ -1835,9 +2029,19 @@ function init() {
       const dy = pt.y - y0;
       const dist = Math.hypot(dx, dy);
       const steps = Math.max(1, Math.floor(dist / spacing));
-      for (let i = 1; i <= steps; i += 1) {
-        const t = i / steps;
-        stampBrush(ctx, x0 + dx * t, y0 + dy * t, radius, feather, rgba);
+
+      if (paintMode === 'mask') {
+        for (let i = 1; i <= steps; i += 1) {
+          const t = i / steps;
+          stampMaskBrush(x0 + dx * t, y0 + dy * t, radius, feather);
+        }
+        redrawMaskOverlay();
+      } else {
+        const rgba = getPaintColorRgba();
+        for (let i = 1; i <= steps; i += 1) {
+          const t = i / steps;
+          stampBrush(ctx, x0 + dx * t, y0 + dy * t, radius, feather, rgba);
+        }
       }
 
       modalPaint.lastX = pt.x;
@@ -1848,7 +2052,11 @@ function init() {
       if (modalPaint?.drawing && modalPaint.pointerId === e.pointerId) {
         modalPaint.drawing = false;
         modalPaint.pointerId = null;
-        commitPaintedImage();
+        if (paintMode === 'mask') {
+          commitMaskData();
+        } else {
+          commitPaintedImage();
+        }
       } else {
         endPaintPan(e);
       }
@@ -1880,13 +2088,27 @@ function init() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     modalPaint.undo = null;
+    modalPaint.maskUndo = null;
     const undoBtn = $('paintUndo');
     if (undoBtn) undoBtn.disabled = true;
+    // Also clear mask on reset
+    clearMask();
     commitPaintedImage();
     setPaintZoom(100);
     capturePaintBaseSize();
     applyPaintTransform();
   });
+
+  $('paintModeDraw')?.addEventListener('click', () => setPaintMode('draw'));
+  $('paintModeMask')?.addEventListener('click', () => {
+    const modelId = String($('modelId')?.value || 'dashscope');
+    if (!isMaskSupported(modelId)) {
+      alert('蒙版模式仅支持「快速修图」模型');
+      return;
+    }
+    setPaintMode('mask');
+  });
+  $('clearMask')?.addEventListener('click', () => clearMask());
 
   $('paintPrev')?.addEventListener('click', () => {
     if (!paintGallery) return;
