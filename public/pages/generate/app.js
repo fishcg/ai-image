@@ -596,6 +596,37 @@ function isMaskSupported(modelId) {
   return modelId === 'dashscope';
 }
 
+async function applyMaskToImage(imageDataUrl, maskDataUrl) {
+  const img = await loadImageElement(imageDataUrl);
+  const maskImg = await loadImageElement(maskDataUrl);
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  // Read mask: where mask is white (brightness > 128), paint white on the image
+  const mc = document.createElement('canvas');
+  mc.width = w;
+  mc.height = h;
+  const mctx = mc.getContext('2d');
+  mctx.drawImage(maskImg, 0, 0, w, h);
+  const maskPixels = mctx.getImageData(0, 0, w, h);
+  const imgPixels = ctx.getImageData(0, 0, w, h);
+  for (let i = 0; i < maskPixels.data.length; i += 4) {
+    const brightness = maskPixels.data[i]; // R channel
+    if (brightness > 128) {
+      imgPixels.data[i] = 255;     // R
+      imgPixels.data[i + 1] = 255; // G
+      imgPixels.data[i + 2] = 255; // B
+      imgPixels.data[i + 3] = 255; // A
+    }
+  }
+  ctx.putImageData(imgPixels, 0, 0);
+  return c.toDataURL('image/png');
+}
+
 function hexToRgb(hex) {
   const s = String(hex || '').trim();
   const m = /^#?([0-9a-f]{6})$/i.exec(s);
@@ -1436,21 +1467,31 @@ async function handleSubmit() {
     const originalSrc = images[clampInt(baseIndex, 0, images.length - 1, 0)]?.dataUrl || '';
     const orderedImages = images.length >= 2 ? moveIndexToEnd(images, baseIndex) : images;
     const orderHint = buildOrderHint(files, baseIndex);
-    const finalPrompt = orderHint ? `${orderHint}\n\n${prompt}` : prompt;
+    let finalPrompt = orderHint ? `${orderHint}\n\n${prompt}` : prompt;
     const hd = Boolean($('hd')?.checked);
 
-    // Check if there's a mask for the base image (last in ordered list = the base)
-    let mask = null;
+    // Check if there's a mask for the base image — apply mask onto the image directly
+    // (paint white over masked areas so the model can see what to repaint)
+    let hasMask = false;
     if (modelId === 'dashscope') {
       const baseFile = files[clampInt(baseIndex, 0, files.length - 1, 0)];
       const baseKey = baseFile ? fileKey(baseFile) : '';
       if (baseKey && maskDataUrls.has(baseKey)) {
-        mask = maskDataUrls.get(baseKey);
+        const mask = maskDataUrls.get(baseKey);
+        const baseImgIdx = orderedImages.length >= 2 ? orderedImages.length - 1 : baseIndex;
+        const baseImg = orderedImages[baseImgIdx];
+        if (baseImg) {
+          const maskedDataUrl = await applyMaskToImage(baseImg.dataUrl, mask);
+          orderedImages[baseImgIdx] = { ...baseImg, dataUrl: maskedDataUrl };
+          hasMask = true;
+        }
       }
+    }
+    if (hasMask) {
+      finalPrompt = `请只修改图中白色涂抹区域，将该区域重绘为：${prompt}。保持其余部分不变。`;
     }
 
     const body = { images: orderedImages, prompt: finalPrompt, n, hd, modelId };
-    if (mask) body.mask = mask;
 
     const resp = await fetch('/api/generate?async=1', {
       method: 'POST',

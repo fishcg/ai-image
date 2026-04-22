@@ -99,7 +99,6 @@ function validateRequest(parsed) {
   const images = Array.isArray(parsed?.images) ? parsed.images : [];
   const hd = Boolean(parsed?.hd);
   const aspectRatio = parsed?.aspectRatio == null ? null : String(parsed.aspectRatio).trim();
-  const mask = (typeof parsed?.mask === 'string' && parsed.mask.startsWith('data:')) ? parsed.mask : null;
 
   if (!prompt) return { ok: false, statusCode: 400, payload: { error: 'Prompt is required' } };
   if (images.length > 3) return { ok: false, statusCode: 400, payload: { error: 'At most 3 input images are allowed' } };
@@ -107,7 +106,7 @@ function validateRequest(parsed) {
     return { ok: false, statusCode: 400, payload: { error: 'At least 1 image is required' } };
   }
 
-  return { ok: true, mode, modelId, provider, prompt, n, images, hd, aspectRatio, mask };
+  return { ok: true, mode, modelId, provider, prompt, n, images, hd, aspectRatio };
 }
 
 async function runGenerate({
@@ -126,7 +125,7 @@ async function runGenerate({
 }) {
   const v = validateRequest(parsed);
   if (!v.ok) return { statusCode: v.statusCode, payload: v.payload };
-  const { mode, modelId, provider, prompt, n, images, hd, aspectRatio, mask } = v;
+  const { mode, modelId, provider, prompt, n, images, hd, aspectRatio } = v;
 
   const month = getMonthKey(new Date());
   let reservation;
@@ -166,24 +165,6 @@ async function runGenerate({
     ? providerTimeoutMsNanoAi
     : (modelId === 'jimeng' ? providerTimeoutMsJiMeng : providerTimeoutMsDashScope);
 
-  // Upload mask to OSS if provided
-  let maskUrl = null;
-  if (mask && modelId === 'dashscope') {
-    try {
-      const { mime, buffer } = parseDataUrl(mask);
-      const ext = mimeToExt(mime) || '.png';
-      const maskKey = path.posix.join(
-        dc?.ossFilePath ? String(dc.ossFilePath) : 'ai-image',
-        'masks',
-        `${Date.now()}_${crypto.randomBytes(6).toString('hex')}${ext}`
-      );
-      maskUrl = await UploadFile(maskKey, buffer, { mime });
-    } catch (err) {
-      // Mask upload failure is non-fatal, proceed without mask
-      maskUrl = null;
-    }
-  }
-
   try {
     const result = await provider.generate({
       axios,
@@ -199,7 +180,6 @@ async function runGenerate({
       uploadedUrls,
       baseDim,
       timeoutMs,
-      maskUrl,
     });
 
     const providerOutputUrls = Array.isArray(result?.outputImageUrls) ? result.outputImageUrls : [];
