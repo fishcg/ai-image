@@ -1488,7 +1488,7 @@ async function handleSubmit() {
       }
     }
     if (hasMask) {
-      finalPrompt = `请只修改图中白色涂抹区域，将该区域重绘为：${prompt}。保持其余部分不变。`;
+      finalPrompt = `请**只修改**图中白色画笔涂抹区域，将该区域重绘为：${prompt}。保持其余部分不变。`;
     }
 
     const body = { images: orderedImages, prompt: finalPrompt, n, hd, modelId };
