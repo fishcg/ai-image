@@ -593,7 +593,7 @@ function clearMask() {
 }
 
 function isMaskSupported(modelId) {
-  return modelId === 'dashscope';
+  return !!modelId;
 }
 
 async function applyMaskToImage(imageDataUrl, maskDataUrl) {
@@ -1473,7 +1473,7 @@ async function handleSubmit() {
     // Check if there's a mask for the base image — apply mask onto the image directly
     // (paint white over masked areas so the model can see what to repaint)
     let hasMask = false;
-    if (modelId === 'dashscope') {
+    {
       const baseFile = files[clampInt(baseIndex, 0, files.length - 1, 0)];
       const baseKey = baseFile ? fileKey(baseFile) : '';
       if (baseKey && maskDataUrls.has(baseKey)) {
