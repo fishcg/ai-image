@@ -79,13 +79,13 @@ function setupNavigation() {
     navLogin.addEventListener('click', () => {
       // 可以跳转到登录页面或显示登录弹窗
       // 这里简单处理，跳转到生图页面（那里有登录功能）
-      window.location.href = '/generate.html';
+      window.location.href = '/pages/generate/generate.html';
     });
   }
 
   if (navRegister) {
     navRegister.addEventListener('click', () => {
-      window.location.href = '/generate.html';
+      window.location.href = '/pages/generate/generate.html';
     });
   }
 }
