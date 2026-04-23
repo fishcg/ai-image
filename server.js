@@ -28,11 +28,11 @@ const REGISTRATION_CODES = String(
 
 function getDbConfig() {
   return {
-    host: process.env.MYSQL_HOST || mysqlConfig?.host || '127.0.0.1',
-    port: Number(process.env.MYSQL_PORT || mysqlConfig?.port || 3306),
-    user: process.env.MYSQL_USER || mysqlConfig?.user || 'root',
-    password: process.env.MYSQL_PASSWORD || mysqlConfig?.password || '',
-    database: process.env.MYSQL_DATABASE || mysqlConfig?.database || 'ai_image',
+    host: mysqlConfig?.host || '127.0.0.1',
+    port: Number(mysqlConfig?.port || 3306),
+    user: mysqlConfig?.user || 'root',
+    password: mysqlConfig?.password || '',
+    database: mysqlConfig?.database || 'ai_image',
   };
 }
 

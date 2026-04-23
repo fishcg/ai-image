@@ -442,6 +442,25 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   cursor: not-allowed;
 }
 
+.reedit-btn-main {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: rgba(59, 130, 246, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.reedit-btn-main:hover {
+  background: rgba(59, 130, 246, 0.5);
+  border-color: #3b82f6;
+}
+.reedit-btn-main:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .primary.loading {
   position: relative;
   padding-right: 42px;

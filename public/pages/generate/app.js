@@ -99,6 +99,151 @@ const presets = {
     '减少衣物/背景网格摩尔纹（moire reduction），纹理更自然，保持清晰度不过度涂抹。',
   '固定人物':
     '人物动作、表情和比例保持不变',
+  // ── 影调调整 扩充 ──
+  '高对比':
+    '提升画面整体对比度（high contrast），明暗分明，层次更强，保留细节不死黑死白。',
+  '低对比柔和':
+    '降低对比度（low contrast），画面更柔和平淡，适合日系/文艺风格，避免发灰。',
+  '褪色复古':
+    '模拟褪色胶片效果（faded vintage），黑色提亮、饱和度降低，复古怀旧感。',
+  '交叉冲洗':
+    '模拟交叉冲洗效果（cross processing），色彩偏移独特，高饱和，绿/黄色调偏移。',
+  '青橙调色':
+    '好莱坞经典青橙调色（teal & orange），肤色偏暖橙，阴影偏青蓝，电影感强。',
+  '黑白':
+    '转为高质量黑白（black & white），层次丰富，对比适中，保留细节与质感。',
+  '选择性着色':
+    '画面转黑白但保留主体/关键元素的原始色彩（selective color），视觉冲击力强。',
+  '莫兰迪色调':
+    '莫兰迪低饱和色调（Morandi tone），灰调柔和高级，色彩克制不艳俗。',
+  '赛博朋克调色':
+    '赛博朋克风调色（cyberpunk grading），高饱和霓虹紫/青/粉，暗部深邃，科技感强。',
+  '日落暖调':
+    '模拟日落黄金时刻色调（golden hour），整体暖橙，光线柔和，氛围温馨。',
+  '月光冷调':
+    '模拟月光/蓝调夜景（moonlight blue），冷色偏蓝，安静神秘，暗部通透。',
+  '高饱和':
+    '提升整体色彩饱和度（vibrant），颜色更鲜艳有活力，避免过饱和溢出。',
+  '低饱和':
+    '降低整体饱和度（desaturated），色彩更克制淡雅，适合文艺/高级感。',
+  '提亮暗部':
+    '提亮画面暗部区域（shadow lift），暗部细节更清晰，整体不过曝。',
+  '压暗高光':
+    '压制高光区域（highlight recovery），减少过曝，保留高光细节与层次。',
+  '分离色调':
+    '高光与阴影分别着色（split toning），如高光暖黄+阴影冷蓝，增加画面层次。',
+  '柔焦':
+    '添加柔焦效果（soft focus），整体轻微柔化，梦幻朦胧感，保留主体轮廓。',
+  '清晰度增强':
+    '增强中间调对比/清晰度（clarity boost），纹理更立体，质感更强。',
+  '曝光补偿+1':
+    '整体提亮约一档曝光（exposure +1），适合偏暗照片，避免高光过曝。',
+  '曝光补偿-1':
+    '整体压暗约一档曝光（exposure -1），适合过亮照片，保留暗部细节。',
+  '宝丽来':
+    '模拟宝丽来即时成像风格（Polaroid），轻微褪色、暖色偏移、柔和对比。',
+  '拍立得漏光':
+    '模拟拍立得漏光效果（instant film light leak），边缘暖色漏光，复古感。',
+  // ── 面容调整 扩充 ──
+  '磨皮':
+    '轻度磨皮（skin smoothing），减少毛孔与瑕疵，保留皮肤纹理不过度塑料感。',
+  '祛痘祛斑':
+    '去除面部痘痘、斑点、瑕疵（blemish removal），肤色均匀自然。',
+  '瘦脸':
+    '轻微瘦脸效果（face slim），下颌线更清晰，保持五官比例自然不变形。',
+  '小脸':
+    '缩小面部比例（small face），头身比更优，保持五官不变形。',
+  '大眼':
+    '适度放大眼睛（eye enlarge），保持眼型自然，不夸张变形。',
+  '提亮肤色':
+    '整体提亮肤色（skin brighten），更白皙通透，避免过白失真。',
+  '古铜肤色':
+    '肤色偏古铜/小麦色（tan skin），健康有光泽，不偏黄偏脏。',
+  '腮红':
+    '添加自然腮红效果（blush），苹果肌区域微微泛红，自然不突兀。',
+  '卧蚕':
+    '增强卧蚕效果（aegyo sal），眼下微微凸起有光泽，显眼睛更大更有神。',
+  '唇色增强':
+    '增强唇部色彩与光泽（lip color enhance），嘴唇更饱满有气色。',
+  '唇部丰满':
+    '嘴唇更饱满丰润（plump lips），保持唇形自然，不过度夸张。',
+  '眉毛修整':
+    '修整眉毛形状（brow grooming），更整齐干净，保持自然眉型。',
+  '法令纹淡化':
+    '淡化法令纹（nasolabial fold reduce），面部更年轻，保持自然表情。',
+  '黑眼圈淡化':
+    '淡化黑眼圈（dark circle reduce），眼下更干净明亮，不过度涂抹。',
+  '下颌线':
+    '增强下颌线轮廓（jawline define），面部更立体有型。',
+  '鼻梁高光':
+    '鼻梁添加高光（nose highlight），鼻子更挺拔立体，自然不假。',
+  '双眼皮':
+    '增强双眼皮效果（double eyelid），褶皱更清晰自然。',
+  '睫毛增强':
+    '增强睫毛浓密度与卷翘（lash enhance），根根分明，不结块。',
+  '面部立体':
+    '增强面部立体感（face contouring），高光与阴影更分明，五官更深邃。',
+  '微笑':
+    '嘴角微微上扬（subtle smile），表情更亲和自然，不夸张。',
+  // ── 环境调整 扩充 ──
+  '换天空-晴天':
+    '将天空替换为晴朗蓝天白云（clear sky），光照方向与地面一致，过渡自然。',
+  '换天空-日落':
+    '将天空替换为日落晚霞（sunset sky），暖色光照映射到主体与地面。',
+  '换天空-星空':
+    '将天空替换为星空/银河（starry sky），夜景氛围，光照协调。',
+  '换天空-阴天':
+    '将天空替换为阴天多云（overcast sky），柔和散射光，氛围沉稳。',
+  '换季-春':
+    '将环境调整为春季氛围（spring），嫩绿植被、花朵点缀、明亮柔和光线。',
+  '换季-秋':
+    '将环境调整为秋季氛围（autumn），金黄红叶、暖色调、落叶飘散。',
+  '换季-冬':
+    '将环境调整为冬季氛围（winter），积雪覆盖、冷色调、呼吸白雾。',
+  '水面倒影':
+    '在地面/前景添加水面倒影效果（water reflection），倒影清晰自然，增加画面层次。',
+  '镜面地板':
+    '地面变为镜面反射效果（mirror floor），主体倒影清晰，科技感/时尚感。',
+  '光影斑驳':
+    '添加树叶/窗户投射的斑驳光影（dappled light），自然光感，氛围更生动。',
+  '彩虹':
+    '在天空/背景添加彩虹（rainbow），位置与光照方向合理，不遮挡主体。',
+  '极光':
+    '在天空添加极光效果（aurora borealis），绿紫色光带，梦幻壮观。',
+  '云海':
+    '添加云海/云雾缭绕效果（sea of clouds），仙境氛围，主体在云上或云中。',
+  '花瓣雨':
+    '添加各色花瓣飘落效果（petal rain），不限于樱花，颜色可多样，浪漫氛围。',
+  '落叶':
+    '添加秋叶飘落效果（falling leaves），金黄/红色叶片，自然飘散。',
+  '萤火虫':
+    '添加萤火虫光点效果（fireflies），暖黄色微光点，夜景梦幻感。',
+  '蝴蝶':
+    '添加蝴蝶飞舞效果（butterflies），色彩斑斓，自然分布不遮挡面部。',
+  '泡泡':
+    '添加透明肥皂泡效果（soap bubbles），彩虹反光，轻盈梦幻。',
+  '水花飞溅':
+    '添加水花飞溅效果（water splash），动感十足，水珠晶莹剔透。',
+  '沙尘暴':
+    '添加沙尘/风沙效果（sandstorm），黄色调，粒子飞扬，末日/荒漠感。',
+  '雷暴':
+    '添加雷暴天气效果（thunderstorm），乌云+闪电+雨，戏剧性光影。',
+  '浓雾':
+    '添加浓雾效果（heavy fog），能见度降低，神秘氛围，主体若隐若现。',
+  '废墟背景':
+    '将背景替换为废墟/末日场景（ruins/post-apocalyptic），破败建筑，荒凉感。',
+  '城市夜景':
+    '将背景替换为城市夜景（city night），霓虹灯光，都市氛围。',
+  '森林':
+    '将背景替换为茂密森林（forest），绿色植被，自然光线透过树冠。',
+  '海边':
+    '将背景替换为海边沙滩（beach），蓝天碧海，浪花与沙滩。',
+  '赛博街道':
+    '将背景替换为赛博朋克风街道（cyberpunk street），霓虹招牌，雨湿地面反光。',
+  '教室':
+    '将背景替换为日式教室（classroom），窗边光线，课桌椅，校园氛围。',
+  '花田':
+    '将背景替换为花田/花海（flower field），大片花朵，色彩缤纷，自然光。',
 };
 
 function $(id) {
@@ -1312,9 +1457,45 @@ function buildResultNode(url, { originalSrc, historyId } = {}) {
     meta.appendChild(shareBtn);
   }
 
+  // 继续编辑按钮（始终显示）
+  const reeditBtn = document.createElement('button');
+  reeditBtn.className = 'reedit-btn-main';
+  reeditBtn.textContent = '继续编辑';
+  reeditBtn.addEventListener('click', () => handleUseAsInput(url));
+  meta.appendChild(reeditBtn);
+
   wrap.appendChild(img);
   wrap.appendChild(meta);
   return wrap;
+}
+
+async function handleUseAsInput(imageUrl) {
+  try {
+    const resp = await fetch(imageUrl);
+    const blob = await resp.blob();
+    const ext = blob.type === 'image/jpeg' ? '.jpg' : '.png';
+    const file = new File([blob], `edit_${Date.now()}${ext}`, { type: blob.type });
+
+    selectedFiles = [file];
+    editedImageDataUrls.clear();
+    maskDataUrls.clear();
+
+    syncBaseIndexOptions(1);
+    renderPreview(selectedFiles);
+    updateFileInfo(selectedFiles);
+    setFileError('');
+
+    setActiveTab('img2img');
+
+    const promptEl = $('prompt');
+    if (promptEl) {
+      promptEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      promptEl.focus();
+    }
+  } catch (e) {
+    console.error('handleUseAsInput failed:', e);
+    setStatus('加载图片失败，请重试');
+  }
 }
 
 function setResultsLoading(loading) {
