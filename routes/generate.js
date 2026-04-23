@@ -93,8 +93,9 @@ function validateRequest(parsed) {
   const isNanoModel = modelId === 'google-nano-banana-pro';
   const isDashScope = modelId === 'dashscope';
   const isJiMeng = modelId === 'jimeng';
-  const maxN = isNanoModel ? 1 : (isDashScope ? 4 : (isJiMeng ? 15 : 6));
-  const defaultN = isNanoModel ? 1 : 2;
+  const isGptImage = modelId === 'gpt-image';
+  const maxN = isNanoModel ? 1 : (isDashScope ? 4 : (isJiMeng ? 15 : (isGptImage ? 4 : 6)));
+  const defaultN = isNanoModel ? 1 : (isGptImage ? 1 : 2);
   const n = Number.isFinite(nRaw) ? Math.max(1, Math.min(maxN, Math.floor(nRaw))) : defaultN;
   const images = Array.isArray(parsed?.images) ? parsed.images : [];
   const hd = Boolean(parsed?.hd);
@@ -118,10 +119,12 @@ async function runGenerate({
   ai,
   nanoai,
   jimeng,
+  gptimage,
   monthlyLimit,
   providerTimeoutMsDashScope,
   providerTimeoutMsNanoAi,
   providerTimeoutMsJiMeng,
+  providerTimeoutMsGptImage,
 }) {
   const v = validateRequest(parsed);
   if (!v.ok) return { statusCode: v.statusCode, payload: v.payload };
@@ -163,7 +166,9 @@ async function runGenerate({
   const baseDim = inputDims.length ? inputDims[inputDims.length - 1] : null;
   const timeoutMs = modelId === 'google-nano-banana-pro'
     ? providerTimeoutMsNanoAi
-    : (modelId === 'jimeng' ? providerTimeoutMsJiMeng : providerTimeoutMsDashScope);
+    : modelId === 'jimeng' ? providerTimeoutMsJiMeng
+    : modelId === 'gpt-image' ? providerTimeoutMsGptImage
+    : providerTimeoutMsDashScope;
 
   try {
     const result = await provider.generate({
@@ -171,6 +176,7 @@ async function runGenerate({
       ai,
       nanoai,
       jimeng,
+      gptimage,
       env: process.env,
       mode,
       prompt,
@@ -186,6 +192,26 @@ async function runGenerate({
 
     // Download and upload output images to OSS
     const outputImageUrls = [];
+
+    // Handle base64 buffers (e.g. gpt-image provider)
+    if (Array.isArray(result?.base64Buffers) && result.base64Buffers.length > 0) {
+      for (const buf of result.base64Buffers) {
+        try {
+          const ext = '.png';
+          const outputKey = path.posix.join(
+            dc?.ossFilePath ? String(dc.ossFilePath) : 'ai-image',
+            'outputs',
+            `${Date.now()}_${crypto.randomBytes(8).toString('hex')}${ext}`
+          );
+          const ossUrl = await UploadFile(outputKey, buf, { mime: 'image/png' });
+          outputImageUrls.push(ossUrl);
+        } catch (uploadErr) {
+          console.error('Failed to upload base64 output to OSS:', uploadErr);
+        }
+      }
+    }
+
+    // Handle URL-based results
     for (const providerUrl of providerOutputUrls) {
       try {
         // Download image from provider

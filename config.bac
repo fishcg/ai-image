@@ -57,4 +57,11 @@ const jimeng = {
   TIMEOUT: 300000
 };
 
-module.exports = { http, dc, ai, aliyun, mysql, auth, nanoai };
+const gptimage = {
+  apiUrl: 'https://image.glmbigmodel.me/v1/images/generations',
+  apiKey: 'sk-test',
+  model: 'gpt-image-2',
+  timeout: 300000,
+};
+
+module.exports = { http, dc, ai, aliyun, mysql, auth, nanoai, gptimage };

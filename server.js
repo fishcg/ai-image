@@ -9,7 +9,7 @@ const historyRoutes = require('./routes/history');
 const favoritesRoutes = require('./routes/favorites');
 const galleryRoutes = require('./routes/gallery');
 const aiAssistantRoutes = require('./routes/ai-assistant');
-const { http: httpConfig, dc, ai, nanoai, jimeng, mysql: mysqlConfig, auth: authConfig } = require('./config');
+const { http: httpConfig, dc, ai, nanoai, jimeng, gptimage, mysql: mysqlConfig, auth: authConfig } = require('./config');
 
 const PORT = Number(process.env.PORT || httpConfig?.port || 7992);
 const MONTHLY_LIMIT = Number(process.env.MONTHLY_LIMIT || 200);
@@ -41,6 +41,7 @@ const publicDir = path.join(__dirname, 'public');
 const providerTimeoutMsDashScope = Number(process.env.DASHSCOPE_TIMEOUT || ai?.TIMEOUT || 5 * 60 * 1000);
 const providerTimeoutMsNanoAi = Number(process.env.NANOAI_TIMEOUT || nanoai?.timeout || 5 * 60 * 1000);
 const providerTimeoutMsJiMeng = Number(process.env.JIMENG_TIMEOUT || jimeng?.TIMEOUT || 3 * 60 * 1000);
+const providerTimeoutMsGptImage = Number(process.env.GPTIMAGE_TIMEOUT || gptimage?.timeout || 5 * 60 * 1000);
 const generateRequestTimeoutMs = Number(process.env.GENERATE_REQUEST_TIMEOUT || 5 * 60 * 1000);
 
 const server = http.createServer(async (req, res) => {
@@ -76,10 +77,12 @@ const server = http.createServer(async (req, res) => {
       ai,
       nanoai,
       jimeng,
+      gptimage,
       monthlyLimit: MONTHLY_LIMIT,
       providerTimeoutMsDashScope,
       providerTimeoutMsNanoAi,
       providerTimeoutMsJiMeng,
+      providerTimeoutMsGptImage,
     });
     return;
   }
