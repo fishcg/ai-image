@@ -320,6 +320,23 @@
   cursor: not-allowed;
 }
 
+.edit-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(99, 102, 241, 0.3);
+  border: 1px solid rgba(99, 102, 241, 0.5);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 6px;
+}
+
+.edit-btn:hover {
+  background: rgba(99, 102, 241, 0.5);
+  border-color: #6366f1;
+}
+
 /* Favorites grid */
 .favorites-grid {
   display: grid;
@@ -427,6 +444,22 @@
 .unfavorite-btn:hover {
   background: rgba(239, 68, 68, 0.5);
   border-color: var(--danger);
+}
+
+.edit-btn-fav {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(99, 102, 241, 0.3);
+  border: 1px solid rgba(99, 102, 241, 0.5);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-btn-fav:hover {
+  background: rgba(99, 102, 241, 0.5);
+  border-color: #6366f1;
 }
 
 /* States */

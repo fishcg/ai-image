@@ -247,8 +247,17 @@
         shareToGallery(item.id, url, shareBtn);
       });
 
+      const editBtn = document.createElement('button');
+      editBtn.className = 'edit-btn';
+      editBtn.textContent = '继续编辑';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.open(`/pages/generate/generate.html?editImage=${encodeURIComponent(url)}`, '_blank');
+      });
+
       overlay.appendChild(favoriteBtn);
       overlay.appendChild(shareBtn);
+      overlay.appendChild(editBtn);
       imgWrapper.appendChild(img);
       imgWrapper.appendChild(overlay);
       images.appendChild(imgWrapper);
@@ -347,7 +356,16 @@
       removeFavorite(item.id, card);
     });
 
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn-fav';
+    editBtn.textContent = '继续编辑';
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.open(`/pages/generate/generate.html?editImage=${encodeURIComponent(item.imageUrl)}`, '_blank');
+    });
+
     actions.appendChild(shareBtn);
+    actions.appendChild(editBtn);
     actions.appendChild(unfavoriteBtn);
     overlay.appendChild(actions);
     card.appendChild(img);

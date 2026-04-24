@@ -123,6 +123,37 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 图片代理：解决浏览器 fetch OSS 图片的跨域问题
+  if (req.method === 'GET' && url.pathname === '/api/proxy-image') {
+    const targetUrl = url.searchParams.get('url');
+    if (!targetUrl) {
+      sendText(res, 400, 'Missing url parameter');
+      return;
+    }
+    let targetHost;
+    try { targetHost = new URL(targetUrl).hostname; } catch {
+      sendText(res, 400, 'Invalid url parameter');
+      return;
+    }
+    // 仅允许 OSS 域名
+    const allowedHosts = ['acgay.oss-cn-hangzhou.aliyuncs.com', 'acgay.oss-cn-hangzhou-internal.aliyuncs.com'];
+    if (!allowedHosts.includes(targetHost)) {
+      sendText(res, 403, 'Forbidden');
+      return;
+    }
+    try {
+      const imgResp = await axios.get(targetUrl, { responseType: 'arraybuffer', timeout: 30000 });
+      res.writeHead(200, {
+        'Content-Type': imgResp.headers['content-type'] || 'image/png',
+        'Cache-Control': 'public, max-age=3600',
+      });
+      res.end(Buffer.from(imgResp.data));
+    } catch (err) {
+      sendText(res, 502, `Failed to fetch image: ${err.message}`);
+    }
+    return;
+  }
+
   // AI 辅助功能路由
   if (url.pathname.startsWith('/api/ai/')) {
     const handled = await aiAssistantRoutes.handler({ req, res, ai });

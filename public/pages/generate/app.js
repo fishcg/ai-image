@@ -244,6 +244,10 @@ const presets = {
     '将背景替换为日式教室（classroom），窗边光线，课桌椅，校园氛围。',
   '花田':
     '将背景替换为花田/花海（flower field），大片花朵，色彩缤纷，自然光。',
+  '动漫渲染':
+    '将图片改为宫崎骏风格的漫画风，夏日风格',
+  'CG 渲染':
+    '3A游戏CG渲染风格景观,虚幻引擎5级画面质感,电影级光影表现,细节极度丰富真实,整体画面明亮通透,曝光充足偏高,色彩干净通透,高饱和自然,天空清澈通透,蓝天纯净,云层柔软立体,具有明显层次感。清晰方向光,形成明显光影对比与长阴影,体积光清晰可见,增强空间纵深感,地面具有适度反光与高光点,增强画面质感但不过度湿润,远景空气透视明显,层次分明,整体画面干净清爽,高动态范围成像(HDR),高光通透不死白,暗部干净不发灰,整体视觉具有轻微发光感,画面清晰锐利,真实且具有高级游戏质感',
 };
 
 function $(id) {
@@ -1471,7 +1475,7 @@ function buildResultNode(url, { originalSrc, historyId } = {}) {
 
 async function handleUseAsInput(imageUrl) {
   try {
-    const resp = await fetch(imageUrl);
+    const resp = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
     const blob = await resp.blob();
     const ext = blob.type === 'image/jpeg' ? '.jpg' : '.png';
     const file = new File([blob], `edit_${Date.now()}${ext}`, { type: blob.type });
@@ -2492,6 +2496,16 @@ function init() {
 }
 
 init();
+
+// 从个人中心跳转过来的继续编辑
+(function checkEditImageParam() {
+  const params = new URLSearchParams(window.location.search);
+  const editImage = params.get('editImage');
+  if (editImage) {
+    history.replaceState(null, '', window.location.pathname);
+    setTimeout(() => handleUseAsInput(editImage), 500);
+  }
+})();
 
 function syncBaseIndexOptions(count) {
   const wrap = $('baseIndexWrap');

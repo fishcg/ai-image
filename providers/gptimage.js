@@ -4,9 +4,23 @@ const { buildAspectRatio } = require('../lib/image');
 
 const ALLOWED_RATIOS = ['1:1', '4:3', '3:4', '16:9', '9:16'];
 
+// gpt-image-2 支持任意分辨率，需满足：最大边 ≤ 3840，两边均为 16 倍数，长宽比 ≤ 3:1，总像素 655360~8294400
+// 以下为各比例在 2K（长边 2048）下的尺寸
+const RATIO_SIZE_MAP = {
+  '1:1': '2048x2048',
+  '4:3': '2048x1536',
+  '3:4': '1536x2048',
+  '16:9': '2048x1152',
+  '9:16': '1152x2048',
+};
+
 function normalizeRatio(r) {
   const s = String(r || '').trim();
   return ALLOWED_RATIOS.includes(s) ? s : null;
+}
+
+function ratioToSize(ratio) {
+  return RATIO_SIZE_MAP[ratio] || '2048x2048';
 }
 
 function pickClosestRatio(dim) {
@@ -45,8 +59,9 @@ async function generate({ axios, gptimage, env, mode, prompt, n, hd, aspectRatio
   const baseUrl = (env.GPTIMAGE_API_URL || gptimage?.apiUrl || 'https://image.glmbigmodel.me/v1/images')
     .replace(/\/(generations|edits)$/, '');
   const model = env.GPTIMAGE_MODEL || gptimage?.model || 'gpt-image-2';
-  const resolution = '2k';
   const ratio = normalizeRatio(aspectRatio) || pickClosestRatio(baseDim) || '1:1';
+  const size = ratioToSize(ratio);
+  const quality = hd ? 'high' : undefined;
   const isEdit = mode === 'img2img' && uploadedUrls && uploadedUrls.length > 0;
   const timeout = timeoutMs || 300000;
 
@@ -65,6 +80,8 @@ async function generate({ axios, gptimage, env, mode, prompt, n, hd, aspectRatio
       const form = new FormData();
       form.append('model', model);
       form.append('prompt', prompt);
+      form.append('size', size);
+      if (quality) form.append('quality', quality);
       form.append('response_format', 'url');
       for (let i = 0; i < buffers.length; i++) {
         form.append('image', buffers[i], { filename: `image_${i}.png`, contentType: 'image/png' });
@@ -78,14 +95,16 @@ async function generate({ axios, gptimage, env, mode, prompt, n, hd, aspectRatio
       });
     } else {
       // generations 端点用 JSON
-      response = await axios.post(`${baseUrl}/generations`, {
+      const body = {
         model,
         prompt,
-        ratio,
-        resolution,
+        size,
         n: Math.max(1, Math.min(4, n || 1)),
         response_format: 'url',
-      }, {
+      };
+      if (quality) body.quality = quality;
+
+      response = await axios.post(`${baseUrl}/generations`, body, {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         timeout,
         maxContentLength: 100 * 1024 * 1024,
