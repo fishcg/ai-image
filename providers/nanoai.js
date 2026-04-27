@@ -53,7 +53,7 @@ function normalizeAspectRatio(aspectRatio) {
   return ALLOWED_ASPECT_RATIOS.includes(r) ? r : null;
 }
 
-async function generate({ axios, nanoai, env, prompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
+async function generate({ axios, nanoai, env, prompt, negativePrompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
   // 1. 获取 API Key (支持多种环境变量命名)
   const apiKey = env.NANOAI_API_KEY || nanoai?.apiKey;
   if (!apiKey) {
@@ -69,12 +69,18 @@ async function generate({ axios, nanoai, env, prompt, n, hd, aspectRatio, upload
   const imageSize = hd
     ? (env.NANOAI_IMAGE_SIZE_HD || nanoai?.imageSizeHd || '2K')
     : (env.NANOAI_IMAGE_SIZE || nanoai?.imageSize || '1K');
-  
+
   const finalAspectRatio = normalizeAspectRatio(aspectRatio) || pickClosestAspectRatio(baseDim);
+
+  // 如果有负面 prompt，添加到 prompt 中（nanoai 不直接支持 negative_prompt 参数）
+  let finalPrompt = prompt;
+  if (negativePrompt) {
+    finalPrompt = `${prompt}\n\n不要出现：${negativePrompt}`;
+  }
 
   const payload = {
     model,
-    prompt: prompt,
+    prompt: finalPrompt,
     stream: false,
     image_size: imageSize,
     aspect_ratio: finalAspectRatio,

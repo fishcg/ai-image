@@ -89,6 +89,7 @@ function validateRequest(parsed) {
   if (!provider) return { ok: false, statusCode: 400, payload: { error: `Unknown modelId: ${modelId}` } };
 
   const prompt = String(parsed?.prompt || '').trim();
+  const negativePrompt = String(parsed?.negativePrompt || '').trim();
   const nRaw = Number(parsed?.n);
   const isNanoModel = modelId === 'google-nano-banana-pro';
   const isDashScope = modelId === 'dashscope';
@@ -107,7 +108,7 @@ function validateRequest(parsed) {
     return { ok: false, statusCode: 400, payload: { error: 'At least 1 image is required' } };
   }
 
-  return { ok: true, mode, modelId, provider, prompt, n, images, hd, aspectRatio };
+  return { ok: true, mode, modelId, provider, prompt, negativePrompt, n, images, hd, aspectRatio };
 }
 
 async function runGenerate({
@@ -128,7 +129,7 @@ async function runGenerate({
 }) {
   const v = validateRequest(parsed);
   if (!v.ok) return { statusCode: v.statusCode, payload: v.payload };
-  const { mode, modelId, provider, prompt, n, images, hd, aspectRatio } = v;
+  const { mode, modelId, provider, prompt, negativePrompt, n, images, hd, aspectRatio } = v;
 
   const month = getMonthKey(new Date());
   let reservation;
@@ -180,6 +181,7 @@ async function runGenerate({
       env: process.env,
       mode,
       prompt,
+      negativePrompt,
       n,
       hd,
       aspectRatio,

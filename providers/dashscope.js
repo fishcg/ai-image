@@ -95,7 +95,7 @@ function sizeForWanT2i(aspectRatio) {
   return map[r] || '1280*1280';
 }
 
-async function generate({ axios, ai, env, mode, prompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
+async function generate({ axios, ai, env, mode, prompt, negativePrompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
   const apiKey = env.DASHSCOPE_API_KEY || ai?.API_KEY;
   const isTxt2Img = String(mode || 'img2img') === 'txt2img';
   const apiUrl = (isTxt2Img ? (env.DASHSCOPE_T2I_URL || ai?.T2I_URL) : null) || env.DASHSCOPE_URL || ai?.URL;
@@ -113,6 +113,9 @@ async function generate({ axios, ai, env, mode, prompt, n, hd, aspectRatio, uplo
         ? buildDashScopeSize(baseDim, { maxSide: 2048, multiple: 64, forceMaxSide: hd })
         : (sizeFromAspectRatioEdit(aspectRatio, hd) || (hd ? '2048*2048' : null)));
 
+  // Use user-provided negativePrompt if available, otherwise use default
+  const finalNegativePrompt = negativePrompt || (isTxt2Img ? '' : '低质量');
+
   const payload = {
     model,
     input: {
@@ -126,7 +129,7 @@ async function generate({ axios, ai, env, mode, prompt, n, hd, aspectRatio, uplo
     parameters: {
       n,
       watermark: false,
-      negative_prompt: isTxt2Img ? '' : '低质量',
+      negative_prompt: finalNegativePrompt,
       prompt_extend: true,
       ...(size ? { size } : {}),
     },

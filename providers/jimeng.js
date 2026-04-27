@@ -222,7 +222,7 @@ async function getTaskResult({ axios, auth, taskId, returnUrl = true, timeoutMs,
 /**
  * 即梦生成接口
  */
-async function generate({ axios, jimeng, env, mode, prompt, n, hd, aspectRatio, uploadedUrls, timeoutMs }) {
+async function generate({ axios, jimeng, env, mode, prompt, negativePrompt, n, hd, aspectRatio, uploadedUrls, timeoutMs }) {
   const accessKeyId = env.JIMENG_ACCESS_KEY_ID || jimeng?.ACCESS_KEY_ID;
   const secretAccessKey = env.JIMENG_SECRET_ACCESS_KEY || jimeng?.SECRET_ACCESS_KEY;
 
@@ -252,6 +252,11 @@ async function generate({ axios, jimeng, env, mode, prompt, n, hd, aspectRatio, 
   let enhancedPrompt = prompt;
   if (n > 1) {
     enhancedPrompt = `生成${n}张图片。${prompt}`;
+  }
+
+  // 如果有负面 prompt，添加到 prompt 中（即梦不直接支持 negative_prompt 参数）
+  if (negativePrompt) {
+    enhancedPrompt = `${enhancedPrompt}\n\n不要出现：${negativePrompt}`;
   }
 
   // 提交任务

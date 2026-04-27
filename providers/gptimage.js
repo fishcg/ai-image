@@ -50,7 +50,7 @@ function extractUrls(data) {
   return { outputImageUrls: urls, raw: data };
 }
 
-async function generate({ axios, gptimage, env, mode, prompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
+async function generate({ axios, gptimage, env, mode, prompt, negativePrompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
   const apiKey = env.GPTIMAGE_API_KEY || gptimage?.apiKey;
   if (!apiKey) {
     throw new ProviderError('Missing API Key', { statusCode: 500, payload: { error: 'Missing gpt-image API Key' } });
@@ -64,6 +64,12 @@ async function generate({ axios, gptimage, env, mode, prompt, n, hd, aspectRatio
   const quality = hd ? 'high' : undefined;
   const isEdit = mode === 'img2img' && uploadedUrls && uploadedUrls.length > 0;
   const timeout = timeoutMs || 300000;
+
+  // 如果有负面 prompt，添加到 prompt 中（gpt-image 不直接支持 negative_prompt 参数）
+  let finalPrompt = prompt;
+  if (negativePrompt) {
+    finalPrompt = `${prompt}\n\n不要出现：${negativePrompt}`;
+  }
 
   try {
     let response;
@@ -79,7 +85,7 @@ async function generate({ axios, gptimage, env, mode, prompt, n, hd, aspectRatio
 
       const form = new FormData();
       form.append('model', model);
-      form.append('prompt', prompt);
+      form.append('prompt', finalPrompt);
       form.append('size', size);
       if (quality) form.append('quality', quality);
       form.append('response_format', 'url');
@@ -97,7 +103,7 @@ async function generate({ axios, gptimage, env, mode, prompt, n, hd, aspectRatio
       // generations 端点用 JSON
       const body = {
         model,
-        prompt,
+        prompt: finalPrompt,
         size,
         n: Math.max(1, Math.min(4, n || 1)),
         response_format: 'url',

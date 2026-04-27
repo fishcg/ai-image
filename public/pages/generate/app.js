@@ -1629,6 +1629,8 @@ async function handleSubmit() {
     prompt = `${prompt}\n${faceSnippet}`.trim();
   }
 
+  const negativePrompt = $('negativePrompt')?.value?.trim() || '';
+
   const maxN = isNanoModel(modelId) ? 1 : (modelId === 'dashscope' ? 4 : 6);
   const defaultN = isNanoModel(modelId) ? 1 : 2;
   const n = clampInt($('n')?.value, 1, maxN, defaultN);
@@ -1676,7 +1678,7 @@ async function handleSubmit() {
       finalPrompt = `请**只修改**图中白色画笔涂抹区域，将该区域重绘为：${prompt}。保持其余部分不变。`;
     }
 
-    const body = { images: orderedImages, prompt: finalPrompt, n, hd, modelId };
+    const body = { images: orderedImages, prompt: finalPrompt, negativePrompt, n, hd, modelId };
 
     const resp = await fetch('/api/generate?async=1', {
       method: 'POST',
@@ -1733,6 +1735,7 @@ async function handleSubmitText() {
     return;
   }
 
+  const negativePrompt = $('negativePromptText')?.value?.trim() || '';
   const modelId = String($('modelIdText')?.value || 'dashscope');
   const maxN = isNanoModel(modelId) ? 1 : (modelId === 'dashscope' ? 4 : 6);
   const defaultN = isNanoModel(modelId) ? 1 : 2;
@@ -1755,7 +1758,7 @@ async function handleSubmitText() {
     const resp = await fetch('/api/generate?async=1', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images: [], prompt, n, hd, modelId, mode: 'txt2img', aspectRatio }),
+      body: JSON.stringify({ images: [], prompt, negativePrompt, n, hd, modelId, mode: 'txt2img', aspectRatio }),
     });
 
     const start = await resp.json().catch(() => ({}));
@@ -1806,6 +1809,7 @@ async function handleSubmitText() {
 function handleClear() {
   $('images').value = '';
   $('prompt').value = '';
+  if ($('negativePrompt')) $('negativePrompt').value = '';
   $('n').value = '2';
   $('preview').innerHTML = '';
   selectedFiles = [];
@@ -1827,6 +1831,8 @@ function handleClear() {
 function handleClearText() {
   const prompt = $('promptText');
   if (prompt) prompt.value = '';
+  const negativePrompt = $('negativePromptText');
+  if (negativePrompt) negativePrompt.value = '';
   const n = $('nText');
   if (n) n.value = '2';
   const hd = $('hdText');
