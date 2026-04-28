@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理后台 - 仪表盘</title>
+    <link rel="stylesheet" href="/common/styles.css" />
+    <link rel="stylesheet" href="/pages/admin/admin.css" />
+  </head>
+  <body>
+    <div class="admin-layout">
+      <!-- 侧边栏 -->
+      <aside class="admin-sidebar">
+        <div class="admin-logo">管理后台</div>
+        <nav class="admin-nav">
+          <a href="/pages/admin/dashboard.html" class="admin-nav-item active">
+            <span>📊</span> 仪表盘
+          </a>
+          <a href="/pages/admin/users.html" class="admin-nav-item">
+            <span>👥</span> 用户管理
+          </a>
+          <a href="/pages/admin/quota.html" class="admin-nav-item">
+            <span>💰</span> 额度管理
+          </a>
+        </nav>
+        <div class="admin-user">
+          <div id="adminUsername">加载中...</div>
+          <button id="logoutBtn" class="btn-logout">退出登录</button>
+        </div>
+      </aside>
+
+      <!-- 主内容区 -->
+      <main class="admin-main">
+        <div class="admin-header">
+          <h1>仪表盘</h1>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">总用户数</div>
+            <div class="stat-value" id="totalUsers">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">活跃用户</div>
+            <div class="stat-value" id="activeUsers">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">禁用用户</div>
+            <div class="stat-value" id="disabledUsers">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">总生成次数</div>
+            <div class="stat-value" id="totalGenerations">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">本月生成</div>
+            <div class="stat-value" id="thisMonthGenerations">-</div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h2>快速操作</h2>
+          <div class="quick-actions">
+            <a href="/pages/admin/users.html" class="action-btn">
+              <span>👥</span>
+              <div>
+                <div class="action-title">用户管理</div>
+                <div class="action-desc">查看和管理所有用户</div>
+              </div>
+            </a>
+            <a href="/pages/admin/quota.html" class="action-btn">
+              <span>💰</span>
+              <div>
+                <div class="action-title">额度管理</div>
+                <div class="action-desc">调整用户额度</div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/pages/admin/admin.js"></script>
+    <script>
+      async function loadStats() {
+        try {
+          const response = await fetch('/api/admin/stats');
+          if (!response.ok) {
+            if (response.status === 401) {
+              window.location.href = '/pages/admin/login.html';
+              return;
+            }
+            throw new Error('Failed to load stats');
+          }
+
+          const data = await response.json();
+          document.getElementById('totalUsers').textContent = data.totalUsers;
+          document.getElementById('activeUsers').textContent = data.activeUsers;
+          document.getElementById('disabledUsers').textContent = data.disabledUsers;
+          document.getElementById('totalGenerations').textContent = data.totalGenerations;
+          document.getElementById('thisMonthGenerations').textContent = data.thisMonthGenerations;
+        } catch (error) {
+          console.error('Failed to load stats:', error);
+        }
+      }
+
+      AdminAuth.init();
+      loadStats();
+    </script>
+  </body>
+</html>

@@ -8,6 +8,7 @@ const { ProviderError } = require('../providers/errors');
 const { getAuthUser } = require('../services/auth');
 const { getMonthKey, reserveQuota, adjustQuota, getQuota } = require('../services/quota');
 const { saveHistory } = require('./history');
+const { savePromptToHistory } = require('./prompt-history');
 
 const jobStore = new Map(); // jobId -> { status, createdAt, doneAt, result }
 const JOB_TTL_MS = 60 * 60 * 1000;
@@ -266,6 +267,14 @@ async function runGenerate({
       inputImageUrls: uploadedUrls,
       outputImageUrls,
     });
+
+    // Save prompt to history (async, don't block response)
+    savePromptToHistory({
+      pool,
+      userId: user.id,
+      prompt,
+      negativePrompt,
+    }).catch((err) => console.error('Failed to save prompt history:', err));
 
     return {
       statusCode: 200,

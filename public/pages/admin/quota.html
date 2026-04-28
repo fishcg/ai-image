@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理后台 - 额度管理</title>
+    <link rel="stylesheet" href="/common/styles.css" />
+    <link rel="stylesheet" href="/pages/admin/admin.css" />
+  </head>
+  <body>
+    <div class="admin-layout">
+      <!-- 侧边栏 -->
+      <aside class="admin-sidebar">
+        <div class="admin-logo">管理后台</div>
+        <nav class="admin-nav">
+          <a href="/pages/admin/dashboard.html" class="admin-nav-item">
+            <span>📊</span> 仪表盘
+          </a>
+          <a href="/pages/admin/users.html" class="admin-nav-item">
+            <span>👥</span> 用户管理
+          </a>
+          <a href="/pages/admin/quota.html" class="admin-nav-item active">
+            <span>💰</span> 额度管理
+          </a>
+        </nav>
+        <div class="admin-user">
+          <div id="adminUsername">加载中...</div>
+          <button id="logoutBtn" class="btn-logout">退出登录</button>
+        </div>
+      </aside>
+
+      <!-- 主内容区 -->
+      <main class="admin-main">
+        <div class="admin-header">
+          <h1>额度管理</h1>
+        </div>
+
+        <div class="admin-card">
+          <h2>查询用户额度</h2>
+          <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <input
+              id="userIdInput"
+              class="search-input"
+              type="number"
+              placeholder="输入用户 ID"
+              style="flex: 1;"
+            />
+            <input
+              id="monthInput"
+              class="search-input"
+              type="month"
+              style="flex: 1;"
+            />
+            <button id="queryBtn" class="btn-primary">查询</button>
+          </div>
+
+          <div id="quotaResult" style="display: none;">
+            <div style="padding: 20px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; margin-bottom: 20px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+                <div>
+                  <div style="font-size: 14px; color: rgba(255, 255, 255, 0.6); margin-bottom: 4px;">用户</div>
+                  <div style="font-size: 18px; font-weight: 600; color: #fff;" id="quotaUsername">-</div>
+                </div>
+                <div>
+                  <div style="font-size: 14px; color: rgba(255, 255, 255, 0.6); margin-bottom: 4px;">月份</div>
+                  <div style="font-size: 18px; font-weight: 600; color: #fff;" id="quotaMonth">-</div>
+                </div>
+                <div>
+                  <div style="font-size: 14px; color: rgba(255, 255, 255, 0.6); margin-bottom: 4px;">月度总额度</div>
+                  <div style="font-size: 18px; font-weight: 600; color: #818cf8;" id="quotaLimit">-</div>
+                  <div style="font-size: 12px; color: rgba(255, 255, 255, 0.5); margin-top: 2px;" id="quotaLimitType">-</div>
+                </div>
+                <div>
+                  <div style="font-size: 14px; color: rgba(255, 255, 255, 0.6); margin-bottom: 4px;">已使用</div>
+                  <div style="font-size: 18px; font-weight: 600; color: #ef4444;" id="quotaUsed">-</div>
+                </div>
+                <div>
+                  <div style="font-size: 14px; color: rgba(255, 255, 255, 0.6); margin-bottom: 4px;">剩余</div>
+                  <div style="font-size: 18px; font-weight: 600; color: #10b981;" id="quotaRemaining">-</div>
+                </div>
+              </div>
+            </div>
+
+            <h3 style="font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 16px;">设置月度总额度</h3>
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
+              <input
+                id="limitInput"
+                class="search-input"
+                type="number"
+                placeholder="输入新的月度总额度（留空使用默认值）"
+                style="flex: 1;"
+                min="0"
+              />
+              <button id="setLimitBtn" class="btn-primary">设置额度</button>
+              <button id="useDefaultBtn" class="btn-secondary">使用默认值</button>
+            </div>
+
+            <h3 style="font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 16px;">重置使用量</h3>
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <button id="resetUsageBtn" class="btn-danger">重置本月使用量为 0</button>
+              <span style="font-size: 14px; color: rgba(255, 255, 255, 0.6);">
+                （将已使用量清零，不影响总额度）
+              </span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/pages/admin/admin.js"></script>
+    <script>
+      let currentUserId = null;
+      let currentMonth = null;
+      let currentDefaultLimit = null;
+
+      // 设置默认月份为当前月
+      const now = new Date();
+      document.getElementById('monthInput').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+      async function queryQuota() {
+        const userId = Number(document.getElementById('userIdInput').value);
+        const month = document.getElementById('monthInput').value;
+
+        if (!userId || userId <= 0) {
+          showToast('请输入有效的用户 ID', 'error');
+          return;
+        }
+
+        if (!month) {
+          showToast('请选择月份', 'error');
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/admin/quota?userId=${userId}&month=${month}`);
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              window.location.href = '/pages/admin/login.html';
+              return;
+            }
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to query quota');
+          }
+
+          const data = await response.json();
+          currentUserId = data.userId;
+          currentMonth = data.month;
+          currentDefaultLimit = data.defaultLimit;
+
+          document.getElementById('quotaUsername').textContent = data.username;
+          document.getElementById('quotaMonth').textContent = data.month;
+          document.getElementById('quotaLimit').textContent = data.limit;
+          document.getElementById('quotaLimitType').textContent =
+            data.customLimit !== null ? '（自定义额度）' : `（使用默认值 ${data.defaultLimit}）`;
+          document.getElementById('quotaUsed').textContent = data.used;
+          document.getElementById('quotaRemaining').textContent = data.remaining;
+          document.getElementById('quotaResult').style.display = 'block';
+
+          // 如果有自定义额度，显示在输入框中
+          if (data.customLimit !== null) {
+            document.getElementById('limitInput').value = data.customLimit;
+          } else {
+            document.getElementById('limitInput').value = '';
+          }
+        } catch (error) {
+          console.error('Failed to query quota:', error);
+          showToast(error.message || '查询失败', 'error');
+          document.getElementById('quotaResult').style.display = 'none';
+        }
+      }
+
+      async function setLimit() {
+        if (!currentUserId) {
+          showToast('请先查询用户额度', 'error');
+          return;
+        }
+
+        const limitInput = document.getElementById('limitInput').value.trim();
+        const limit = limitInput === '' ? null : Number(limitInput);
+
+        if (limit !== null && (!Number.isFinite(limit) || limit < 0)) {
+          showToast('请输入有效的额度值', 'error');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/admin/quota/set-limit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: currentUserId,
+              limit: limit,
+            }),
+          });
+
+          if (!response.ok) throw new Error('Failed to set limit');
+
+          showToast(limit === null ? '已设置为使用默认值' : '额度设置成功', 'success');
+          document.getElementById('limitInput').value = '';
+          queryQuota();
+        } catch (error) {
+          console.error('Failed to set limit:', error);
+          showToast('设置失败', 'error');
+        }
+      }
+
+      async function useDefault() {
+        if (!currentUserId) {
+          showToast('请先查询用户额度', 'error');
+          return;
+        }
+
+        if (!confirm(`确定要将该用户的月度额度设置为默认值（${currentDefaultLimit}）吗？`)) return;
+
+        try {
+          const response = await fetch('/api/admin/quota/set-limit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: currentUserId,
+              limit: null,
+            }),
+          });
+
+          if (!response.ok) throw new Error('Failed to use default');
+
+          showToast('已设置为使用默认值', 'success');
+          queryQuota();
+        } catch (error) {
+          console.error('Failed to use default:', error);
+          showToast('设置失败', 'error');
+        }
+      }
+
+      async function resetUsage() {
+        if (!currentUserId || !currentMonth) {
+          showToast('请先查询用户额度', 'error');
+          return;
+        }
+
+        if (!confirm('确定要将该用户本月的使用量重置为 0 吗？')) return;
+
+        try {
+          const response = await fetch('/api/admin/quota/reset-usage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: currentUserId,
+              month: currentMonth,
+            }),
+          });
+
+          if (!response.ok) throw new Error('Failed to reset usage');
+
+          showToast('使用量重置成功', 'success');
+          queryQuota();
+        } catch (error) {
+          console.error('Failed to reset usage:', error);
+          showToast('重置失败', 'error');
+        }
+      }
+
+      // 事件绑定
+      document.getElementById('queryBtn').addEventListener('click', queryQuota);
+      document.getElementById('setLimitBtn').addEventListener('click', setLimit);
+      document.getElementById('useDefaultBtn').addEventListener('click', useDefault);
+      document.getElementById('resetUsageBtn').addEventListener('click', resetUsage);
+
+      document.getElementById('userIdInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') queryQuota();
+      });
+
+      document.getElementById('limitInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') setLimit();
+      });
+
+      AdminAuth.init();
+    </script>
+  </body>
+</html>

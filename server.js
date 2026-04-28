@@ -9,6 +9,10 @@ const historyRoutes = require('./routes/history');
 const favoritesRoutes = require('./routes/favorites');
 const galleryRoutes = require('./routes/gallery');
 const aiAssistantRoutes = require('./routes/ai-assistant');
+const promptHistoryRoutes = require('./routes/prompt-history');
+const adminAuthRoutes = require('./routes/admin/auth');
+const adminUsersRoutes = require('./routes/admin/users');
+const adminQuotaRoutes = require('./routes/admin/quota');
 const { http: httpConfig, dc, ai, nanoai, jimeng, gptimage, mysql: mysqlConfig, auth: authConfig } = require('./config');
 
 const PORT = Number(process.env.PORT || httpConfig?.port || 7992);
@@ -94,6 +98,16 @@ const server = http.createServer(async (req, res) => {
     await historyRoutes.getHistory({ req, res, pool });
     return;
   }
+  if (req.method === 'GET' && url.pathname === '/api/prompt-history') {
+    await promptHistoryRoutes.getPromptHistory({ req, res, pool });
+    return;
+  }
+  if (req.method === 'DELETE' && url.pathname === '/api/prompt-history') {
+    const { readBody } = require('./lib/http');
+    const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+    await promptHistoryRoutes.deletePromptHistory({ req, res, pool, body });
+    return;
+  }
   if (req.method === 'GET' && url.pathname === '/api/favorites') {
     await favoritesRoutes.getFavorites({ req, res, pool });
     return;
@@ -158,6 +172,73 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname.startsWith('/api/ai/')) {
     const handled = await aiAssistantRoutes.handler({ req, res, ai });
     if (handled !== false) return;
+  }
+
+  // 管理后台路由
+  if (url.pathname.startsWith('/api/admin/')) {
+    // Admin auth
+    if (req.method === 'POST' && url.pathname === '/api/admin/login') {
+      await adminAuthRoutes.login({ req, res, pool, sessionTtlDays: 7 });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/logout') {
+      await adminAuthRoutes.logout({ req, res, pool });
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/admin/me') {
+      await adminAuthRoutes.me({ req, res, pool });
+      return;
+    }
+
+    // Admin users
+    if (req.method === 'GET' && url.pathname === '/api/admin/users') {
+      await adminUsersRoutes.listUsers({ req, res, pool });
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/admin/users/detail') {
+      await adminUsersRoutes.getUserDetail({ req, res, pool });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/users/toggle-status') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminUsersRoutes.toggleUserStatus({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'DELETE' && url.pathname === '/api/admin/users') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminUsersRoutes.deleteUser({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/admin/stats') {
+      await adminUsersRoutes.getStats({ req, res, pool });
+      return;
+    }
+
+    // Admin quota
+    if (req.method === 'GET' && url.pathname === '/api/admin/quota') {
+      await adminQuotaRoutes.getUserQuota({ req, res, pool, monthlyLimit: MONTHLY_LIMIT });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/quota/adjust') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminQuotaRoutes.adjustQuota({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/quota/reset') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminQuotaRoutes.resetQuota({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/quota/batch-adjust') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminQuotaRoutes.batchAdjustQuota({ req, res, pool, body });
+      return;
+    }
   }
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {

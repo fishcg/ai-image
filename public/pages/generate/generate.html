@@ -183,6 +183,12 @@
             <button id="extractStyle" class="secondary" type="button" style="flex: 1;" title="从上传的图片提取风格">
               🎨 提取风格
             </button>
+            <div style="position: relative; flex: 1;">
+              <button id="promptHistory" class="secondary" type="button" style="width: 100%;" title="查看提示词历史">
+                📝 历史
+              </button>
+              <div id="promptHistoryDropdown" class="prompt-history-dropdown" hidden></div>
+            </div>
           </div>
           <textarea id="prompt" rows="5" placeholder="描述你希望生成的效果…"></textarea>
           <div style="margin-top: 12px;">
@@ -406,6 +412,12 @@
               <button id="enhancePromptText" class="secondary" type="button" style="flex: 1;" title="使用 AI 自动增强 Prompt">
                 ✨ 一键美化
               </button>
+              <div style="position: relative; flex: 1;">
+                <button id="promptHistoryText" class="secondary" type="button" style="width: 100%;" title="查看提示词历史">
+                  📝 历史
+                </button>
+                <div id="promptHistoryDropdownText" class="prompt-history-dropdown" hidden></div>
+              </div>
             </div>
             <textarea id="promptText" rows="5" placeholder="描述你希望生成的画面…"></textarea>
             <div style="margin-top: 12px;">

@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理后台 - 用户管理</title>
+    <link rel="stylesheet" href="/common/styles.css" />
+    <link rel="stylesheet" href="/pages/admin/admin.css" />
+  </head>
+  <body>
+    <div class="admin-layout">
+      <!-- 侧边栏 -->
+      <aside class="admin-sidebar">
+        <div class="admin-logo">管理后台</div>
+        <nav class="admin-nav">
+          <a href="/pages/admin/dashboard.html" class="admin-nav-item">
+            <span>📊</span> 仪表盘
+          </a>
+          <a href="/pages/admin/users.html" class="admin-nav-item active">
+            <span>👥</span> 用户管理
+          </a>
+          <a href="/pages/admin/quota.html" class="admin-nav-item">
+            <span>💰</span> 额度管理
+          </a>
+        </nav>
+        <div class="admin-user">
+          <div id="adminUsername">加载中...</div>
+          <button id="logoutBtn" class="btn-logout">退出登录</button>
+        </div>
+      </aside>
+
+      <!-- 主内容区 -->
+      <main class="admin-main">
+        <div class="admin-header">
+          <h1>用户管理</h1>
+        </div>
+
+        <div class="admin-card">
+          <div class="search-box">
+            <input
+              id="searchInput"
+              class="search-input"
+              type="text"
+              placeholder="搜索用户名..."
+            />
+            <button id="searchBtn" class="btn-primary">搜索</button>
+            <select id="sortBySelect" class="search-input" style="flex: 0 0 150px;">
+              <option value="created_at">注册时间</option>
+              <option value="usage">本月使用</option>
+              <option value="username">用户名</option>
+            </select>
+            <select id="sortOrderSelect" class="search-input" style="flex: 0 0 100px;">
+              <option value="desc">降序</option>
+              <option value="asc">升序</option>
+            </select>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>用户名</th>
+                  <th>本月使用</th>
+                  <th>状态</th>
+                  <th>注册时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr>
+                  <td colspan="6" style="text-align: center; padding: 40px;">加载中...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button id="prevPage">上一页</button>
+            <span class="page-info" id="pageInfo">-</span>
+            <button id="nextPage">下一页</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/pages/admin/admin.js"></script>
+    <script>
+      let currentPage = 1;
+      let totalPages = 1;
+      let searchQuery = '';
+      let sortBy = 'created_at';
+      let sortOrder = 'desc';
+
+      async function loadUsers() {
+        try {
+          let url = `/api/admin/users?page=${currentPage}&limit=20`;
+          if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+          url += `&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              window.location.href = '/pages/admin/login.html';
+              return;
+            }
+            throw new Error('Failed to load users');
+          }
+
+          const data = await response.json();
+          renderUsers(data.users);
+          updatePagination(data.pagination);
+        } catch (error) {
+          console.error('Failed to load users:', error);
+          document.getElementById('usersTableBody').innerHTML =
+            '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #ef4444;">加载失败</td></tr>';
+        }
+      }
+
+      function renderUsers(users) {
+        const tbody = document.getElementById('usersTableBody');
+
+        if (users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">暂无用户</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = users.map(user => `
+          <tr>
+            <td>${user.id}</td>
+            <td>${escapeHtml(user.username)}</td>
+            <td>${user.current_month_used}</td>
+            <td>
+              <span class="badge ${user.is_disabled ? 'badge-danger' : 'badge-success'}">
+                ${user.is_disabled ? '已禁用' : '正常'}
+              </span>
+            </td>
+            <td>${formatDate(user.created_at)}</td>
+            <td>
+              <button class="btn-secondary btn-sm" onclick="toggleUserStatus(${user.id}, ${user.is_disabled})">
+                ${user.is_disabled ? '启用' : '禁用'}
+              </button>
+              <button class="btn-danger btn-sm" onclick="deleteUser(${user.id}, '${escapeHtml(user.username)}')">
+                删除
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      function updatePagination(pagination) {
+        currentPage = pagination.page;
+        totalPages = pagination.totalPages;
+
+        document.getElementById('pageInfo').textContent =
+          `第 ${pagination.page} / ${pagination.totalPages} 页 (共 ${pagination.total} 条)`;
+
+        document.getElementById('prevPage').disabled = currentPage <= 1;
+        document.getElementById('nextPage').disabled = currentPage >= totalPages;
+      }
+
+      async function toggleUserStatus(userId, isDisabled) {
+        const action = isDisabled ? '启用' : '禁用';
+        if (!confirm(`确定要${action}该用户吗？`)) return;
+
+        try {
+          const response = await fetch('/api/admin/users/toggle-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: userId, isDisabled: !isDisabled }),
+          });
+
+          if (!response.ok) throw new Error('Failed to toggle user status');
+
+          showToast(`${action}成功`, 'success');
+          loadUsers();
+        } catch (error) {
+          console.error('Failed to toggle user status:', error);
+          showToast(`${action}失败`, 'error');
+        }
+      }
+
+      async function deleteUser(userId, username) {
+        if (!confirm(`确定要删除用户 "${username}" 吗？此操作不可恢复！`)) return;
+
+        try {
+          const response = await fetch('/api/admin/users', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: userId }),
+          });
+
+          if (!response.ok) throw new Error('Failed to delete user');
+
+          showToast('删除成功', 'success');
+          loadUsers();
+        } catch (error) {
+          console.error('Failed to delete user:', error);
+          showToast('删除失败', 'error');
+        }
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // 事件绑定
+      document.getElementById('searchBtn').addEventListener('click', () => {
+        searchQuery = document.getElementById('searchInput').value.trim();
+        currentPage = 1;
+        loadUsers();
+      });
+
+      document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('searchBtn').click();
+        }
+      });
+
+      document.getElementById('sortBySelect').addEventListener('change', (e) => {
+        sortBy = e.target.value;
+        currentPage = 1;
+        loadUsers();
+      });
+
+      document.getElementById('sortOrderSelect').addEventListener('change', (e) => {
+        sortOrder = e.target.value;
+        currentPage = 1;
+        loadUsers();
+      });
+
+      document.getElementById('prevPage').addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadUsers();
+        }
+      });
+
+      document.getElementById('nextPage').addEventListener('click', () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          loadUsers();
+        }
+      });
+
+      AdminAuth.init();
+      loadUsers();
+    </script>
+  </body>
+</html>

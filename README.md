@@ -8,6 +8,7 @@
 - 每月额度：默认 `200` 张/账号/月，页面右上角展示剩余
 - 输入图片预览、常用修图/二次元提示词快捷按钮
 - “面部重绘”开关 + 重绘程度（1–5）
+- 提示词历史：自动保存使用过的提示词，支持快速复用和删除
 
 ## 环境要求
 
@@ -98,6 +99,18 @@ UI 可切换到 `Google Nano banana pro`（通过 NanoAI 网关）。
 - `users`：用户账号与密码哈希
 - `sessions`：登录会话（Cookie `sid` 的 hash）
 - `usage_monthly`：按月用量统计（`YYYY-MM`）
+- `generation_history`：图片生成历史记录
+- `favorites`：用户收藏的图片
+- `gallery`：首页展示的图片（用户分享 + 管理员添加）
+- `prompt_history`：提示词历史记录（自动保存，最多 100 条/用户）
+
+### 数据库升级
+
+如果你已经部署了旧版本，可以使用迁移脚本升级数据库：
+
+```bash
+mysql -u root -p ai_image < migrations/001_add_prompt_history.sql
+```
 
 ## API（简要）
 
@@ -106,6 +119,8 @@ UI 可切换到 `Google Nano banana pro`（通过 NanoAI 网关）。
 - `POST /api/logout`
 - `GET /api/me`
 - `POST /api/generate` `{ images, prompt, n }`（需登录，且有额度）
+- `GET /api/prompt-history?limit=20`（获取提示词历史）
+- `DELETE /api/prompt-history` `{ id }`（删除提示词历史）
 
 ## 项目结构
 

@@ -2924,4 +2924,174 @@ document.addEventListener('DOMContentLoaded', function() {
   if (enhancePromptTextBtn) {
     enhancePromptTextBtn.addEventListener('click', () => enhancePromptWithAI('txt2img'));
   }
+
+  // 提示词历史功能
+  initPromptHistory();
 });
+
+/**
+ * 初始化提示词历史功能
+ */
+function initPromptHistory() {
+  // 修图模式
+  const historyBtn = document.getElementById('promptHistory');
+  const historyDropdown = document.getElementById('promptHistoryDropdown');
+  if (historyBtn && historyDropdown) {
+    historyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePromptHistory('img2img');
+    });
+  }
+
+  // 生图模式
+  const historyBtnText = document.getElementById('promptHistoryText');
+  const historyDropdownText = document.getElementById('promptHistoryDropdownText');
+  if (historyBtnText && historyDropdownText) {
+    historyBtnText.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePromptHistory('txt2img');
+    });
+  }
+
+  // 点击外部关闭下拉框
+  document.addEventListener('click', () => {
+    if (historyDropdown) historyDropdown.hidden = true;
+    if (historyDropdownText) historyDropdownText.hidden = true;
+  });
+}
+
+/**
+ * 切换提示词历史下拉框
+ */
+async function togglePromptHistory(mode) {
+  const dropdownId = mode === 'txt2img' ? 'promptHistoryDropdownText' : 'promptHistoryDropdown';
+  const dropdown = document.getElementById(dropdownId);
+  if (!dropdown) return;
+
+  if (!dropdown.hidden) {
+    dropdown.hidden = true;
+    return;
+  }
+
+  dropdown.hidden = false;
+  dropdown.innerHTML = '<div class="prompt-history-loading">加载中...</div>';
+
+  try {
+    const response = await fetch('/api/prompt-history?limit=20');
+    if (!response.ok) {
+      throw new Error('Failed to fetch prompt history');
+    }
+
+    const data = await response.json();
+    const prompts = data.prompts || [];
+
+    if (prompts.length === 0) {
+      dropdown.innerHTML = '<div class="prompt-history-empty">暂无历史记录</div>';
+      return;
+    }
+
+    dropdown.innerHTML = prompts.map(item => {
+      const useCount = item.use_count > 1 ? `使用 ${item.use_count} 次` : '';
+      const lastUsed = new Date(item.last_used_at).toLocaleDateString('zh-CN', {
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `
+        <div class="prompt-history-item" data-id="${item.id}">
+          <div class="prompt-history-content">
+            <div class="prompt-history-text">${escapeHtml(item.prompt)}</div>
+            ${item.negative_prompt ? `<div class="prompt-history-negative">负面: ${escapeHtml(item.negative_prompt)}</div>` : ''}
+            <div class="prompt-history-meta">
+              <span>${lastUsed}</span>
+              ${useCount ? `<span>•</span><span>${useCount}</span>` : ''}
+            </div>
+          </div>
+          <button class="prompt-history-delete" data-id="${item.id}" onclick="deletePromptHistory(event, ${item.id}, '${mode}')">删除</button>
+        </div>
+      `;
+    }).join('');
+
+    // 绑定点击事件
+    dropdown.querySelectorAll('.prompt-history-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.classList.contains('prompt-history-delete')) return;
+
+        const id = item.dataset.id;
+        const promptData = prompts.find(p => p.id == id);
+        if (promptData) {
+          applyPromptHistory(promptData, mode);
+          dropdown.hidden = true;
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Failed to load prompt history:', error);
+    dropdown.innerHTML = '<div class="prompt-history-empty">加载失败</div>';
+  }
+}
+
+/**
+ * 应用历史提示词
+ */
+function applyPromptHistory(promptData, mode) {
+  const promptId = mode === 'txt2img' ? 'promptText' : 'prompt';
+  const negativePromptId = mode === 'txt2img' ? 'negativePromptText' : 'negativePrompt';
+
+  const promptEl = document.getElementById(promptId);
+  const negativePromptEl = document.getElementById(negativePromptId);
+
+  if (promptEl) promptEl.value = promptData.prompt;
+  if (negativePromptEl && promptData.negative_prompt) {
+    negativePromptEl.value = promptData.negative_prompt;
+  }
+
+  showToast('✅ 已应用历史提示词', 'success');
+}
+
+/**
+ * 删除提示词历史
+ */
+async function deletePromptHistory(event, id, mode) {
+  event.stopPropagation();
+
+  if (!confirm('确定要删除这条历史记录吗？')) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/prompt-history', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete prompt history');
+    }
+
+    showToast('✅ 已删除', 'success');
+
+    // 重新加载列表
+    const dropdownId = mode === 'txt2img' ? 'promptHistoryDropdownText' : 'promptHistoryDropdown';
+    const dropdown = document.getElementById(dropdownId);
+    if (dropdown && !dropdown.hidden) {
+      togglePromptHistory(mode);
+      setTimeout(() => togglePromptHistory(mode), 100);
+    }
+  } catch (error) {
+    console.error('Failed to delete prompt history:', error);
+    showToast('❌ 删除失败', 'error');
+  }
+}
+
+/**
+ * HTML 转义
+ */
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
