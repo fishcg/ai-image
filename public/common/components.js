@@ -25,6 +25,7 @@ const Components = {
             <a href="/pages/home/index.html" class="nav-link ${isHome ? 'active' : ''}" target="_blank">首页</a>
             <a href="/pages/generate/generate.html" class="nav-link ${isGenerate ? 'active' : ''}" target="_blank">AI 创作</a>
             <a href="/pages/profile/profile.html" id="navProfile" class="nav-link ${isProfile ? 'active' : ''}" style="display:none" target="_blank">个人中心</a>
+            <a href="/pages/admin/dashboard.html" id="navAdmin" class="nav-link" style="display:none" target="_blank">后台管理</a>
           </div>
           <div class="nav-actions">
             <div id="navUser" class="nav-user" style="display:none">

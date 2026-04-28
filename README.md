@@ -9,6 +9,7 @@
 - 输入图片预览、常用修图/二次元提示词快捷按钮
 - “面部重绘”开关 + 重绘程度（1–5）
 - 提示词历史：自动保存使用过的提示词，支持快速复用和删除
+- 管理后台：用户管理、额度调整、统计数据
 
 ## 环境要求
 
@@ -103,16 +104,40 @@ UI 可切换到 `Google Nano banana pro`（通过 NanoAI 网关）。
 - `favorites`：用户收藏的图片
 - `gallery`：首页展示的图片（用户分享 + 管理员添加）
 - `prompt_history`：提示词历史记录（自动保存，最多 100 条/用户）
+- `admin_users`：管理员账号
+- `admin_sessions`：管理员会话
 
 ### 数据库升级
 
 如果你已经部署了旧版本，可以使用迁移脚本升级数据库：
 
 ```bash
+# 添加提示词历史功能
 mysql -u root -p ai_image < migrations/001_add_prompt_history.sql
+
+# 添加管理后台功能
+mysql -u root -p ai_image < migrations/002_add_admin_system.sql
 ```
 
+## 管理后台
+
+访问地址：`http://localhost:7993/pages/admin/login.html`
+
+默认管理员账号：
+- 用户名：`admin`
+- 密码：`admin123`
+
+**重要：首次登录后请立即修改密码！**
+
+### 管理后台功能
+
+- **仪表盘**：查看系统统计数据（用户数、生成次数等）
+- **用户管理**：查看、搜索、禁用/启用、删除用户
+- **额度管理**：查询用户额度、调整额度、重置额度
+
 ## API（简要）
+
+### 用户 API
 
 - `POST /api/register` `{ username, password, inviteCode }`
 - `POST /api/login` `{ username, password }`
@@ -121,6 +146,20 @@ mysql -u root -p ai_image < migrations/001_add_prompt_history.sql
 - `POST /api/generate` `{ images, prompt, n }`（需登录，且有额度）
 - `GET /api/prompt-history?limit=20`（获取提示词历史）
 - `DELETE /api/prompt-history` `{ id }`（删除提示词历史）
+
+### 管理后台 API
+
+- `POST /api/admin/login` `{ username, password }`
+- `POST /api/admin/logout`
+- `GET /api/admin/me`
+- `GET /api/admin/stats`（获取统计数据）
+- `GET /api/admin/users?page=1&limit=20&search=`（用户列表）
+- `GET /api/admin/users/detail?id=`（用户详情）
+- `POST /api/admin/users/toggle-status` `{ id, isDisabled }`（禁用/启用用户）
+- `DELETE /api/admin/users` `{ id }`（删除用户）
+- `GET /api/admin/quota?userId=&month=`（查询用户额度）
+- `POST /api/admin/quota/adjust` `{ userId, month, delta }`（调整额度）
+- `POST /api/admin/quota/reset` `{ userId, month }`（重置额度）
 
 ## 项目结构
 

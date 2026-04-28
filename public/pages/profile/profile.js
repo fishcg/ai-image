@@ -81,6 +81,11 @@
       const data = await res.json();
       if (!data.user || !data.quota) return;
 
+      // 检查用户是否被禁用
+      if (data.user.isDisabled) {
+        showDisabledWarning();
+      }
+
       const quota = data.quota;
       const total = quota.limit || 0;
       const used = quota.used || 0;
@@ -614,6 +619,57 @@
       closeModal('imageModal');
     }
   });
+
+  // Show disabled warning
+  function showDisabledWarning() {
+    const warningDiv = document.createElement('div');
+    warningDiv.id = 'disabledWarning';
+    warningDiv.style.cssText = `
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+      z-index: 10000;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      max-width: 90%;
+      animation: slideDown 0.3s ease-out;
+    `;
+    warningDiv.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 24px;">⚠️</span>
+        <div>
+          <div>您的账号已被禁用</div>
+          <div style="font-size: 14px; font-weight: 400; margin-top: 4px; opacity: 0.9;">
+            无法生成或修改图片，如有疑问请联系管理员
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideDown {
+        from {
+          transform: translateX(-50%) translateY(-20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(-50%) translateY(0);
+          opacity: 1;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(warningDiv);
+  }
 
   // Initialize
   async function init() {

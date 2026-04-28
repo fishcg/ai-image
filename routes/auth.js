@@ -122,7 +122,14 @@ async function me({ req, res, pool, monthlyLimit }) {
     return;
   }
   const quota = await getQuota({ pool, userId: user.id, month: getMonthKey(new Date()), monthlyLimit });
-  sendJson(res, 200, { user: { id: user.id, username: user.username }, quota });
+  sendJson(res, 200, {
+    user: {
+      id: user.id,
+      username: user.username,
+      isDisabled: user.is_disabled,
+    },
+    quota,
+  });
 }
 
 module.exports = { register, login, logout, me, getAuthUser };

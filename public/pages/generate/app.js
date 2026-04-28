@@ -1180,6 +1180,13 @@ function setAuthUi({ user, quota }) {
   const navUsername = $('navUsername');
   const navProfile = $('navProfile');
 
+  // 检查用户是否被禁用
+  if (currentUser && currentUser.isDisabled) {
+    showDisabledWarning();
+    if (submitBtn) submitBtn.disabled = true;
+    if (submitTextBtn) submitTextBtn.disabled = true;
+  }
+
   if (!currentUser) {
     if (me) me.textContent = '未登录';
     if (quotaEl) {
@@ -3094,4 +3101,45 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+/**
+ * 显示账号被禁用警告
+ */
+function showDisabledWarning() {
+  // 避免重复显示
+  if (document.getElementById('disabledWarning')) return;
+
+  const warningDiv = document.createElement('div');
+  warningDiv.id = 'disabledWarning';
+  warningDiv.style.cssText = `
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 16px 24px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    z-index: 10000;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    max-width: 90%;
+    animation: slideDown 0.3s ease-out;
+  `;
+  warningDiv.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 24px;">⚠️</span>
+      <div>
+        <div>您的账号已被禁用</div>
+        <div style="font-size: 14px; font-weight: 400; margin-top: 4px; opacity: 0.9;">
+          无法生成或修改图片，如有疑问请联系管理员
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(warningDiv);
 }

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(64) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   is_disabled BOOLEAN NOT NULL DEFAULT FALSE,
+  custom_monthly_limit INT UNSIGNED DEFAULT NULL COMMENT '自定义月度额度，NULL 表示使用全局默认值',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_username (username)

@@ -203,10 +203,96 @@ async function getStats({ req, res, pool }) {
   }
 }
 
+async function getChartData({ req, res, pool }) {
+  const admin = await requireAdmin({ pool, req, res });
+  if (!admin) return;
+
+  try {
+    // 获取最近 12 个月的使用量趋势
+    const [monthlyUsage] = await pool.query(`
+      SELECT
+        DATE_FORMAT(created_at, '%Y-%m') as month,
+        COUNT(*) as count
+      FROM generation_history
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+      ORDER BY month ASC
+    `);
+
+    // 获取最近 12 个月的用户增长趋势
+    const [userGrowth] = await pool.query(`
+      SELECT
+        DATE_FORMAT(created_at, '%Y-%m') as month,
+        COUNT(*) as count
+      FROM users
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+      ORDER BY month ASC
+    `);
+
+    // 获取模型使用分布
+    const [modelDistribution] = await pool.query(`
+      SELECT
+        model_id,
+        COUNT(*) as count
+      FROM generation_history
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY model_id
+      ORDER BY count DESC
+    `);
+
+    // 获取生成模式分布
+    const [modeDistribution] = await pool.query(`
+      SELECT
+        mode,
+        COUNT(*) as count
+      FROM generation_history
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY mode
+    `);
+
+    // 获取每日生成量（最近 30 天）
+    const [dailyGenerations] = await pool.query(`
+      SELECT
+        DATE_FORMAT(created_at, '%Y-%m-%d') as date,
+        COUNT(*) as count
+      FROM generation_history
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+      ORDER BY date ASC
+    `);
+
+    // 获取 TOP 10 活跃用户
+    const [topUsers] = await pool.query(`
+      SELECT
+        u.username,
+        COUNT(gh.id) as generation_count
+      FROM users u
+      LEFT JOIN generation_history gh ON u.id = gh.user_id
+      WHERE gh.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY u.id, u.username
+      ORDER BY generation_count DESC
+      LIMIT 10
+    `);
+
+    sendJson(res, 200, {
+      monthlyUsage,
+      userGrowth,
+      modelDistribution,
+      modeDistribution,
+      dailyGenerations,
+      topUsers,
+    });
+  } catch (err) {
+    sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
+  }
+}
+
 module.exports = {
   listUsers,
   getUserDetail,
   toggleUserStatus,
   deleteUser,
   getStats,
+  getChartData,
 };

@@ -60,7 +60,7 @@ async function getAuthUser({ pool, req }) {
 
   const tokenHash = sha256Hex(sid);
   const [rows] = await pool.query(
-    `SELECT u.id, u.username
+    `SELECT u.id, u.username, u.is_disabled
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ? AND s.expires_at > NOW()

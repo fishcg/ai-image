@@ -59,6 +59,12 @@ async function parseAndAuth({ req, res, pool }) {
     return null;
   }
 
+  // 检查用户是否被禁用
+  if (user.is_disabled) {
+    sendJson(res, 403, { error: '您的账号已被禁用，无法使用此功能' });
+    return null;
+  }
+
   let body;
   try {
     body = await readBody(req, { maxBytes: 60 * 1024 * 1024 });

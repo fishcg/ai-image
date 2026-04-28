@@ -6,6 +6,7 @@
     <title>管理后台 - 仪表盘</title>
     <link rel="stylesheet" href="/common/styles.css" />
     <link rel="stylesheet" href="/pages/admin/admin.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <div class="admin-layout">
@@ -58,6 +59,39 @@
           </div>
         </div>
 
+        <!-- 图表区域 -->
+        <div class="charts-grid">
+          <div class="admin-card">
+            <h2>月度使用量趋势（最近12个月）</h2>
+            <canvas id="monthlyUsageChart"></canvas>
+          </div>
+
+          <div class="admin-card">
+            <h2>每日生成量（最近30天）</h2>
+            <canvas id="dailyGenerationsChart"></canvas>
+          </div>
+
+          <div class="admin-card">
+            <h2>用户增长趋势（最近12个月）</h2>
+            <canvas id="userGrowthChart"></canvas>
+          </div>
+
+          <div class="admin-card">
+            <h2>模型使用分布（最近30天）</h2>
+            <canvas id="modelDistributionChart"></canvas>
+          </div>
+
+          <div class="admin-card">
+            <h2>生成模式分布（最近30天）</h2>
+            <canvas id="modeDistributionChart"></canvas>
+          </div>
+
+          <div class="admin-card">
+            <h2>TOP 10 活跃用户（最近30天）</h2>
+            <canvas id="topUsersChart"></canvas>
+          </div>
+        </div>
+
         <div class="admin-card">
           <h2>快速操作</h2>
           <div class="quick-actions">
@@ -81,31 +115,6 @@
     </div>
 
     <script src="/pages/admin/admin.js"></script>
-    <script>
-      async function loadStats() {
-        try {
-          const response = await fetch('/api/admin/stats');
-          if (!response.ok) {
-            if (response.status === 401) {
-              window.location.href = '/pages/admin/login.html';
-              return;
-            }
-            throw new Error('Failed to load stats');
-          }
-
-          const data = await response.json();
-          document.getElementById('totalUsers').textContent = data.totalUsers;
-          document.getElementById('activeUsers').textContent = data.activeUsers;
-          document.getElementById('disabledUsers').textContent = data.disabledUsers;
-          document.getElementById('totalGenerations').textContent = data.totalGenerations;
-          document.getElementById('thisMonthGenerations').textContent = data.thisMonthGenerations;
-        } catch (error) {
-          console.error('Failed to load stats:', error);
-        }
-      }
-
-      AdminAuth.init();
-      loadStats();
-    </script>
+    <script src="/pages/admin/dashboard-charts.js"></script>
   </body>
 </html>

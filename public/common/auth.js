@@ -49,6 +49,7 @@ const Auth = {
     const navUser = document.getElementById('navUser');
     const navGuest = document.getElementById('navGuest');
     const navProfile = document.getElementById('navProfile');
+    const navAdmin = document.getElementById('navAdmin');
     const navUsername = document.getElementById('navUsername');
 
     if (isLoggedIn && this.currentUser) {
@@ -56,6 +57,11 @@ const Auth = {
       if (navGuest) navGuest.style.display = 'none';
       if (navProfile) navProfile.style.display = '';
       if (navUsername) navUsername.textContent = this.currentUser.username;
+
+      // 只对用户 ID 为 1 的用户显示后台管理链接
+      if (navAdmin) {
+        navAdmin.style.display = this.currentUser.id === 1 ? '' : 'none';
+      }
 
       // 更新额度显示（如果存在）
       const quotaEl = document.getElementById('quota');
@@ -82,6 +88,7 @@ const Auth = {
       if (navUser) navUser.style.display = 'none';
       if (navGuest) navGuest.style.display = 'flex';
       if (navProfile) navProfile.style.display = 'none';
+      if (navAdmin) navAdmin.style.display = 'none';
 
       // 隐藏需要认证的元素
       document.querySelectorAll('[data-auth="required"]').forEach(el => {

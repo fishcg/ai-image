@@ -215,28 +215,32 @@ const server = http.createServer(async (req, res) => {
       await adminUsersRoutes.getStats({ req, res, pool });
       return;
     }
+    if (req.method === 'GET' && url.pathname === '/api/admin/chart-data') {
+      await adminUsersRoutes.getChartData({ req, res, pool });
+      return;
+    }
 
     // Admin quota
     if (req.method === 'GET' && url.pathname === '/api/admin/quota') {
       await adminQuotaRoutes.getUserQuota({ req, res, pool, monthlyLimit: MONTHLY_LIMIT });
       return;
     }
-    if (req.method === 'POST' && url.pathname === '/api/admin/quota/adjust') {
+    if (req.method === 'POST' && url.pathname === '/api/admin/quota/set-limit') {
       const { readBody } = require('./lib/http');
       const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
-      await adminQuotaRoutes.adjustQuota({ req, res, pool, body });
+      await adminQuotaRoutes.setUserLimit({ req, res, pool, body });
       return;
     }
-    if (req.method === 'POST' && url.pathname === '/api/admin/quota/reset') {
+    if (req.method === 'POST' && url.pathname === '/api/admin/quota/reset-usage') {
       const { readBody } = require('./lib/http');
       const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
-      await adminQuotaRoutes.resetQuota({ req, res, pool, body });
+      await adminQuotaRoutes.resetUsage({ req, res, pool, body });
       return;
     }
-    if (req.method === 'POST' && url.pathname === '/api/admin/quota/batch-adjust') {
+    if (req.method === 'POST' && url.pathname === '/api/admin/quota/batch-set-limit') {
       const { readBody } = require('./lib/http');
       const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
-      await adminQuotaRoutes.batchAdjustQuota({ req, res, pool, body });
+      await adminQuotaRoutes.batchSetLimit({ req, res, pool, body });
       return;
     }
   }
