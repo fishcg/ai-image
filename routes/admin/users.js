@@ -1,5 +1,6 @@
 const { sendJson } = require('../../lib/http');
 const { getAdminUser } = require('./auth');
+const { getFullImageUrl } = require('../../lib/url-helper');
 
 async function requireAdmin({ pool, req, res }) {
   const admin = await getAdminUser({ pool, req });
@@ -89,7 +90,7 @@ async function getUserDetail({ req, res, pool }) {
 
   try {
     const [[user]] = await pool.query(
-      'SELECT id, username, is_disabled, created_at FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, username, is_disabled, custom_monthly_limit, created_at FROM users WHERE id = ? LIMIT 1',
       [userId]
     );
 
@@ -114,6 +115,80 @@ async function getUserDetail({ req, res, pool }) {
       user,
       usageHistory,
       generationCount,
+    });
+  } catch (err) {
+    sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
+  }
+}
+
+async function getUserGenerations({ req, res, pool }) {
+  const admin = await requireAdmin({ pool, req, res });
+  if (!admin) return;
+
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const userId = Number(url.searchParams.get('userId'));
+  const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+  const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit')) || 20));
+  const offset = (page - 1) * limit;
+
+  if (!userId || userId <= 0) {
+    sendJson(res, 400, { error: 'Invalid user id' });
+    return;
+  }
+
+  try {
+    const [[user]] = await pool.query(
+      'SELECT id, username FROM users WHERE id = ? LIMIT 1',
+      [userId]
+    );
+
+    if (!user) {
+      sendJson(res, 404, { error: 'User not found' });
+      return;
+    }
+
+    const [generations] = await pool.query(
+      `SELECT id, mode, model_id, prompt, input_image_urls, output_image_urls, created_at
+       FROM generation_history
+       WHERE user_id = ?
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`,
+      [userId, limit, offset]
+    );
+
+    const [[{ total }]] = await pool.query(
+      'SELECT COUNT(*) as total FROM generation_history WHERE user_id = ?',
+      [userId]
+    );
+
+    const parseUrls = (field) => {
+      if (!field) return [];
+      if (Array.isArray(field)) return field;
+      if (typeof field === 'string') {
+        try { return JSON.parse(field); } catch { return []; }
+      }
+      return [];
+    };
+
+    const mapped = generations.map((row) => ({
+      id: row.id,
+      mode: row.mode,
+      model_id: row.model_id,
+      prompt: row.prompt,
+      input_image_urls: parseUrls(row.input_image_urls).map(getFullImageUrl),
+      output_image_urls: parseUrls(row.output_image_urls).map(getFullImageUrl),
+      created_at: row.created_at,
+    }));
+
+    sendJson(res, 200, {
+      user,
+      generations: mapped,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (err) {
     sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
@@ -291,6 +366,7 @@ async function getChartData({ req, res, pool }) {
 module.exports = {
   listUsers,
   getUserDetail,
+  getUserGenerations,
   toggleUserStatus,
   deleteUser,
   getStats,

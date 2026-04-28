@@ -22,6 +22,15 @@
           <a href="/pages/admin/quota.html" class="admin-nav-item">
             <span>💰</span> 额度管理
           </a>
+          <a href="/pages/admin/announcements.html" class="admin-nav-item">
+            <span>📢</span> 公告管理
+          </a>
+          <a href="/pages/admin/settings.html" class="admin-nav-item">
+            <span>⚙️</span> 系统设置
+          </a>
+          <a href="/pages/admin/reg-codes.html" class="admin-nav-item">
+            <span>🔑</span> 注册码管理
+          </a>
         </nav>
         <div class="admin-user">
           <div id="adminUsername">加载中...</div>
@@ -129,7 +138,11 @@
         tbody.innerHTML = users.map(user => `
           <tr>
             <td>${user.id}</td>
-            <td>${escapeHtml(user.username)}</td>
+            <td>
+              <a href="/pages/admin/user-detail.html?id=${user.id}" style="color: #818cf8; text-decoration: none; font-weight: 500;">
+                ${escapeHtml(user.username)}
+              </a>
+            </td>
             <td>${user.current_month_used}</td>
             <td>
               <span class="badge ${user.is_disabled ? 'badge-danger' : 'badge-success'}">

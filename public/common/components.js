@@ -151,6 +151,61 @@ const Components = {
         }
       }
     }
+
+    // 加载公告
+    this.loadAnnouncements();
+  },
+
+  async loadAnnouncements() {
+    try {
+      const resp = await fetch('/api/announcements');
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const announcements = data.announcements || [];
+      if (announcements.length === 0) return;
+
+      const typeColors = {
+        info: { bg: '#1e40af', border: '#3b82f6' },
+        warning: { bg: '#92400e', border: '#f59e0b' },
+        success: { bg: '#065f46', border: '#10b981' },
+      };
+
+      const container = document.createElement('div');
+      container.id = 'announcements-container';
+      container.style.cssText = 'position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 9000; width: 90%; max-width: 700px; display: flex; flex-direction: column; gap: 8px;';
+
+      for (const ann of announcements) {
+        if (localStorage.getItem(`dismissed_ann_${ann.id}`)) continue;
+        const colors = typeColors[ann.type] || typeColors.info;
+        const div = document.createElement('div');
+        div.style.cssText = `padding: 12px 16px; background: ${colors.bg}; border: 1px solid ${colors.border}; border-radius: 8px; color: #fff; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);`;
+        div.innerHTML = `
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; margin-bottom: 4px;">${this.escapeHtml(ann.title)}</div>
+            <div style="font-size: 14px; opacity: 0.9;">${this.escapeHtml(ann.content)}</div>
+          </div>
+          <button style="flex-shrink: 0; background: none; border: none; color: rgba(255,255,255,0.7); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;" data-dismiss-ann="${ann.id}">×</button>
+        `;
+        div.querySelector('[data-dismiss-ann]').addEventListener('click', () => {
+          localStorage.setItem(`dismissed_ann_${ann.id}`, '1');
+          div.remove();
+          if (container.children.length === 0) container.remove();
+        });
+        container.appendChild(div);
+      }
+
+      if (container.children.length > 0) {
+        document.body.appendChild(container);
+      }
+    } catch (err) {
+      // 静默失败
+    }
+  },
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 };
 

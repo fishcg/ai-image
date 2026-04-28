@@ -43,12 +43,33 @@ function sha256Hex(input) {
   return crypto.createHash('sha256').update(input).digest('hex');
 }
 
-function validateInviteCode(inviteCodeRaw, { registrationCodes }) {
-  if (!registrationCodes || registrationCodes.length === 0) return '服务端未配置 REGISTRATION_CODE';
+async function validateInviteCode(inviteCodeRaw, { registrationCodes, pool }) {
   const inviteCode = String(inviteCodeRaw || '').trim();
-  if (!inviteCode) return '注册码不能为空';
-  if (!registrationCodes.includes(inviteCode)) return '注册码无效';
-  return null;
+  if (!inviteCode) return { error: '注册码不能为空', codeId: null };
+
+  // 先查数据库
+  if (pool) {
+    try {
+      const [rows] = await pool.query(
+        'SELECT id, max_uses, current_uses, is_active, expires_at FROM registration_codes WHERE code = ? LIMIT 1',
+        [inviteCode]
+      );
+      if (rows.length > 0) {
+        const row = rows[0];
+        if (!row.is_active) return { error: '注册码已停用', codeId: null };
+        if (row.expires_at && new Date(row.expires_at) < new Date()) return { error: '注册码已过期', codeId: null };
+        if (row.max_uses > 0 && row.current_uses >= row.max_uses) return { error: '注册码已达到使用上限', codeId: null };
+        return { error: null, codeId: row.id };
+      }
+    } catch (err) {
+      console.error('Failed to check registration code in DB:', err);
+    }
+  }
+
+  // fallback 到静态配置
+  if (!registrationCodes || registrationCodes.length === 0) return { error: '服务端未配置 REGISTRATION_CODE', codeId: null };
+  if (!registrationCodes.includes(inviteCode)) return { error: '注册码无效', codeId: null };
+  return { error: null, codeId: null };
 }
 
 async function getAuthUser({ pool, req }) {

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理后台 - 用户详情</title>
+    <link rel="stylesheet" href="/common/styles.css" />
+    <link rel="stylesheet" href="/pages/admin/admin.css" />
+    <style>
+      .user-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .info-item {
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+      }
+      .info-label {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 8px;
+      }
+      .info-value {
+        font-size: 20px;
+        font-weight: 600;
+        color: #fff;
+      }
+      .generation-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .generation-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 16px;
+        transition: all 0.2s;
+      }
+      .generation-card:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .generation-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+      .generation-row.no-input {
+        display: block;
+      }
+      .generation-col {
+        flex: 1;
+        min-width: 0;
+      }
+      .generation-col-input {
+        flex: 0 0 auto;
+        max-width: 200px;
+      }
+      .col-label {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.5);
+        margin-bottom: 6px;
+      }
+      .generation-arrow {
+        flex-shrink: 0;
+        align-self: center;
+        font-size: 24px;
+        color: rgba(255, 255, 255, 0.3);
+        padding: 0 4px;
+      }
+      .generation-images {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .generation-image {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+      .generation-image:hover {
+        transform: scale(1.05);
+      }
+      .generation-col-input .generation-image {
+        width: 140px;
+        height: 140px;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+      }
+      .generation-info {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 8px;
+      }
+      .generation-prompt {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.5;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+      }
+      .image-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+      }
+      .image-modal.active {
+        display: flex;
+      }
+      .image-modal img {
+        max-width: 90%;
+        max-height: 90%;
+        object-fit: contain;
+      }
+      .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        color: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.2s;
+        margin-bottom: 24px;
+      }
+      .back-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-layout">
+      <!-- 侧边栏 -->
+      <aside class="admin-sidebar">
+        <div class="admin-logo">管理后台</div>
+        <nav class="admin-nav">
+          <a href="/pages/admin/dashboard.html" class="admin-nav-item">
+            <span>📊</span> 仪表盘
+          </a>
+          <a href="/pages/admin/users.html" class="admin-nav-item active">
+            <span>👥</span> 用户管理
+          </a>
+          <a href="/pages/admin/quota.html" class="admin-nav-item">
+            <span>💰</span> 额度管理
+          </a>
+          <a href="/pages/admin/announcements.html" class="admin-nav-item">
+            <span>📢</span> 公告管理
+          </a>
+          <a href="/pages/admin/settings.html" class="admin-nav-item">
+            <span>⚙️</span> 系统设置
+          </a>
+          <a href="/pages/admin/reg-codes.html" class="admin-nav-item">
+            <span>🔑</span> 注册码管理
+          </a>
+        </nav>
+        <div class="admin-user">
+          <div id="adminUsername">加载中...</div>
+          <button id="logoutBtn" class="btn-logout">退出登录</button>
+        </div>
+      </aside>
+
+      <!-- 主内容区 -->
+      <main class="admin-main">
+        <a href="/pages/admin/users.html" class="back-btn">
+          ← 返回用户列表
+        </a>
+
+        <div class="admin-header">
+          <h1 id="pageTitle">用户详情</h1>
+        </div>
+
+        <div class="admin-card">
+          <h2>基本信息</h2>
+          <div class="user-info-grid">
+            <div class="info-item">
+              <div class="info-label">用户 ID</div>
+              <div class="info-value" id="userId">-</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">用户名</div>
+              <div class="info-value" id="username">-</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">账号状态</div>
+              <div class="info-value" id="userStatus">-</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">月度额度</div>
+              <div class="info-value" id="userLimit">-</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">总生成次数</div>
+              <div class="info-value" id="generationCount">-</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">注册时间</div>
+              <div class="info-value" id="createdAt">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h2>生成记录</h2>
+          <div id="generationsContainer">
+            <div style="text-align: center; padding: 40px; color: rgba(255, 255, 255, 0.6);">
+              加载中...
+            </div>
+          </div>
+
+          <div class="pagination" id="paginationContainer" style="display: none;">
+            <button id="prevPage">上一页</button>
+            <span class="page-info" id="pageInfo">-</span>
+            <button id="nextPage">下一页</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 图片预览模态框 -->
+    <div class="image-modal" id="imageModal">
+      <img id="modalImage" src="" alt="预览" />
+    </div>
+
+    <script src="/pages/admin/admin.js"></script>
+    <script src="/pages/admin/user-detail.js"></script>
+  </body>
+</html>

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理后台 - 公告管理</title>
+    <link rel="stylesheet" href="/common/styles.css" />
+    <link rel="stylesheet" href="/pages/admin/admin.css" />
+    <style>
+      .ann-form { display: flex; flex-direction: column; gap: 16px; max-width: 600px; margin-bottom: 24px; }
+      .ann-form label { display: block; font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+      .ann-form input, .ann-form textarea, .ann-form select { width: 100%; }
+      .ann-form textarea { min-height: 80px; resize: vertical; }
+      .ann-form .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div class="admin-logo">管理后台</div>
+        <nav class="admin-nav">
+          <a href="/pages/admin/dashboard.html" class="admin-nav-item"><span>📊</span> 仪表盘</a>
+          <a href="/pages/admin/users.html" class="admin-nav-item"><span>👥</span> 用户管理</a>
+          <a href="/pages/admin/quota.html" class="admin-nav-item"><span>💰</span> 额度管理</a>
+          <a href="/pages/admin/announcements.html" class="admin-nav-item active"><span>📢</span> 公告管理</a>
+          <a href="/pages/admin/settings.html" class="admin-nav-item"><span>⚙️</span> 系统设置</a>
+          <a href="/pages/admin/reg-codes.html" class="admin-nav-item"><span>🔑</span> 注册码管理</a>
+        </nav>
+        <div class="admin-user">
+          <div id="adminUsername">加载中...</div>
+          <button id="logoutBtn" class="btn-logout">退出登录</button>
+        </div>
+      </aside>
+      <main class="admin-main">
+        <div class="admin-header"><h1>公告管理</h1></div>
+
+        <div class="admin-card">
+          <h2 id="formTitle">创建公告</h2>
+          <input type="hidden" id="editId" value="" />
+          <div class="ann-form">
+            <div>
+              <label for="annTitle">标题</label>
+              <input id="annTitle" class="search-input" type="text" placeholder="公告标题" />
+            </div>
+            <div>
+              <label for="annContent">内容</label>
+              <textarea id="annContent" class="search-input" placeholder="公告内容"></textarea>
+            </div>
+            <div class="row2">
+              <div>
+                <label for="annType">类型</label>
+                <select id="annType" class="search-input">
+                  <option value="info">信息（蓝色）</option>
+                  <option value="warning">警告（黄色）</option>
+                  <option value="success">成功（绿色）</option>
+                </select>
+              </div>
+              <div>
+                <label>&nbsp;</label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input id="annActive" type="checkbox" checked /> 立即启用
+                </label>
+              </div>
+            </div>
+            <div class="row2">
+              <div>
+                <label for="annStart">开始时间（可选）</label>
+                <input id="annStart" class="search-input" type="datetime-local" />
+              </div>
+              <div>
+                <label for="annEnd">结束时间（可选）</label>
+                <input id="annEnd" class="search-input" type="datetime-local" />
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+              <button id="saveAnnBtn" class="btn-primary">创建</button>
+              <button id="cancelEditBtn" class="btn-secondary" style="display:none;">取消编辑</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h2>公告列表</h2>
+          <div style="overflow-x: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>标题</th>
+                  <th>类型</th>
+                  <th>状态</th>
+                  <th>时间范围</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="annTableBody">
+                <tr><td colspan="6" style="text-align:center;padding:40px;">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="/pages/admin/admin.js"></script>
+    <script>
+      const typeLabels = { info: '信息', warning: '警告', success: '成功' };
+      const typeColors = { info: 'badge-success', warning: 'badge-danger', success: 'badge-success' };
+
+      async function loadAnnouncements() {
+        try {
+          const resp = await fetch('/api/admin/announcements');
+          if (!resp.ok) { if (resp.status === 401) { window.location.href = '/pages/admin/login.html'; return; } throw new Error(); }
+          const data = await resp.json();
+          renderTable(data.announcements || []);
+        } catch (e) { console.error(e); }
+      }
+
+      function renderTable(list) {
+        const tbody = document.getElementById('annTableBody');
+        if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;">暂无公告</td></tr>'; return; }
+        tbody.innerHTML = list.map(a => `
+          <tr>
+            <td>${a.id}</td>
+            <td>${esc(a.title)}</td>
+            <td><span class="badge" style="background:rgba(99,102,241,0.2);color:#818cf8;">${typeLabels[a.type] || a.type}</span></td>
+            <td><span class="badge ${a.is_active ? 'badge-success' : 'badge-danger'}">${a.is_active ? '启用' : '停用'}</span></td>
+            <td style="font-size:13px;">${a.start_time ? formatDate(a.start_time) : '—'} ~ ${a.end_time ? formatDate(a.end_time) : '—'}</td>
+            <td>
+              <button class="btn-secondary btn-sm" onclick="editAnn(${a.id})">编辑</button>
+              <button class="btn-secondary btn-sm" onclick="toggleAnn(${a.id}, ${a.is_active})">${a.is_active ? '停用' : '启用'}</button>
+              <button class="btn-danger btn-sm" onclick="deleteAnn(${a.id})">删除</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      let allAnnouncements = [];
+
+      async function loadAndCache() {
+        try {
+          const resp = await fetch('/api/admin/announcements');
+          if (!resp.ok) throw new Error();
+          const data = await resp.json();
+          allAnnouncements = data.announcements || [];
+          renderTable(allAnnouncements);
+        } catch (e) { console.error(e); }
+      }
+
+      function editAnn(id) {
+        const a = allAnnouncements.find(x => x.id === id);
+        if (!a) return;
+        document.getElementById('editId').value = a.id;
+        document.getElementById('annTitle').value = a.title;
+        document.getElementById('annContent').value = a.content;
+        document.getElementById('annType').value = a.type;
+        document.getElementById('annActive').checked = a.is_active;
+        document.getElementById('annStart').value = a.start_time ? a.start_time.slice(0, 16) : '';
+        document.getElementById('annEnd').value = a.end_time ? a.end_time.slice(0, 16) : '';
+        document.getElementById('formTitle').textContent = '编辑公告';
+        document.getElementById('saveAnnBtn').textContent = '保存';
+        document.getElementById('cancelEditBtn').style.display = '';
+      }
+
+      function resetForm() {
+        document.getElementById('editId').value = '';
+        document.getElementById('annTitle').value = '';
+        document.getElementById('annContent').value = '';
+        document.getElementById('annType').value = 'info';
+        document.getElementById('annActive').checked = true;
+        document.getElementById('annStart').value = '';
+        document.getElementById('annEnd').value = '';
+        document.getElementById('formTitle').textContent = '创建公告';
+        document.getElementById('saveAnnBtn').textContent = '创建';
+        document.getElementById('cancelEditBtn').style.display = 'none';
+      }
+
+      document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+
+      document.getElementById('saveAnnBtn').addEventListener('click', async () => {
+        const editId = document.getElementById('editId').value;
+        const payload = {
+          title: document.getElementById('annTitle').value.trim(),
+          content: document.getElementById('annContent').value.trim(),
+          type: document.getElementById('annType').value,
+          isActive: document.getElementById('annActive').checked,
+          startTime: document.getElementById('annStart').value || null,
+          endTime: document.getElementById('annEnd').value || null,
+        };
+        if (!payload.title || !payload.content) { showToast('标题和内容不能为空', 'error'); return; }
+
+        try {
+          const url = editId ? '/api/admin/announcements/update' : '/api/admin/announcements';
+          if (editId) payload.id = Number(editId);
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!resp.ok) throw new Error();
+          showToast(editId ? '更新成功' : '创建成功', 'success');
+          resetForm();
+          loadAndCache();
+        } catch (e) { showToast('操作失败', 'error'); }
+      });
+
+      async function toggleAnn(id, isActive) {
+        try {
+          const resp = await fetch('/api/admin/announcements/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, isActive: !isActive }),
+          });
+          if (!resp.ok) throw new Error();
+          showToast(isActive ? '已停用' : '已启用', 'success');
+          loadAndCache();
+        } catch (e) { showToast('操作失败', 'error'); }
+      }
+
+      async function deleteAnn(id) {
+        if (!confirm('确定要删除这条公告吗？')) return;
+        try {
+          const resp = await fetch('/api/admin/announcements', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id }),
+          });
+          if (!resp.ok) throw new Error();
+          showToast('已删除', 'success');
+          loadAndCache();
+        } catch (e) { showToast('删除失败', 'error'); }
+      }
+
+      function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+      AdminAuth.init();
+      loadAndCache();
+    </script>
+  </body>
+</html>

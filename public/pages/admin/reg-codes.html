@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理后台 - 注册码管理</title>
+    <link rel="stylesheet" href="/common/styles.css" />
+    <link rel="stylesheet" href="/pages/admin/admin.css" />
+    <style>
+      .code-form { display: flex; flex-direction: column; gap: 16px; max-width: 500px; margin-bottom: 24px; }
+      .code-form label { display: block; font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+      .code-form input, .code-form select { width: 100%; }
+      .code-form .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .code-form .hint { font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+      .code-display { font-family: monospace; font-size: 15px; color: #818cf8; }
+    </style>
+  </head>
+  <body>
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div class="admin-logo">管理后台</div>
+        <nav class="admin-nav">
+          <a href="/pages/admin/dashboard.html" class="admin-nav-item"><span>📊</span> 仪表盘</a>
+          <a href="/pages/admin/users.html" class="admin-nav-item"><span>👥</span> 用户管理</a>
+          <a href="/pages/admin/quota.html" class="admin-nav-item"><span>💰</span> 额度管理</a>
+          <a href="/pages/admin/announcements.html" class="admin-nav-item"><span>📢</span> 公告管理</a>
+          <a href="/pages/admin/settings.html" class="admin-nav-item"><span>⚙️</span> 系统设置</a>
+          <a href="/pages/admin/reg-codes.html" class="admin-nav-item active"><span>🔑</span> 注册码管理</a>
+        </nav>
+        <div class="admin-user">
+          <div id="adminUsername">加载中...</div>
+          <button id="logoutBtn" class="btn-logout">退出登录</button>
+        </div>
+      </aside>
+      <main class="admin-main">
+        <div class="admin-header"><h1>注册码管理</h1></div>
+
+        <div class="admin-card">
+          <h2>创建注册码</h2>
+          <div class="code-form">
+            <div>
+              <label for="codeInput">注册码</label>
+              <div style="display: flex; gap: 8px;">
+                <input id="codeInput" class="search-input" type="text" placeholder="输入注册码" style="flex:1;" />
+                <button id="randomCodeBtn" class="btn-secondary" type="button">随机生成</button>
+              </div>
+            </div>
+            <div class="row2">
+              <div>
+                <label for="maxUsesInput">最大使用次数</label>
+                <input id="maxUsesInput" class="search-input" type="number" min="0" value="0" />
+                <div class="hint">0 = 不限次数</div>
+              </div>
+              <div>
+                <label for="expiresInput">过期时间（可选）</label>
+                <input id="expiresInput" class="search-input" type="datetime-local" />
+              </div>
+            </div>
+            <div>
+              <button id="createCodeBtn" class="btn-primary">创建</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h2>注册码列表</h2>
+          <div style="overflow-x: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>注册码</th>
+                  <th>使用次数</th>
+                  <th>状态</th>
+                  <th>过期时间</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="codesTableBody">
+                <tr><td colspan="7" style="text-align:center;padding:40px;">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="/pages/admin/admin.js"></script>
+    <script>
+      document.getElementById('randomCodeBtn').addEventListener('click', () => {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        let code = '';
+        for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+        document.getElementById('codeInput').value = code;
+      });
+
+      document.getElementById('createCodeBtn').addEventListener('click', async () => {
+        const code = document.getElementById('codeInput').value.trim();
+        const maxUses = Number(document.getElementById('maxUsesInput').value) || 0;
+        const expiresAt = document.getElementById('expiresInput').value || null;
+
+        if (!code) { showToast('注册码不能为空', 'error'); return; }
+
+        try {
+          const resp = await fetch('/api/admin/reg-codes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, maxUses, expiresAt }),
+          });
+          const data = await resp.json();
+          if (!resp.ok) { showToast(data.error || '创建失败', 'error'); return; }
+          showToast('创建成功', 'success');
+          document.getElementById('codeInput').value = '';
+          document.getElementById('maxUsesInput').value = '0';
+          document.getElementById('expiresInput').value = '';
+          loadCodes();
+        } catch (e) { showToast('创建失败', 'error'); }
+      });
+
+      async function loadCodes() {
+        try {
+          const resp = await fetch('/api/admin/reg-codes');
+          if (!resp.ok) { if (resp.status === 401) { window.location.href = '/pages/admin/login.html'; return; } throw new Error(); }
+          const data = await resp.json();
+          renderCodes(data.codes || []);
+        } catch (e) { console.error(e); }
+      }
+
+      function renderCodes(codes) {
+        const tbody = document.getElementById('codesTableBody');
+        if (codes.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">暂无注册码</td></tr>'; return; }
+        tbody.innerHTML = codes.map(c => {
+          const usageText = c.max_uses > 0 ? `${c.current_uses} / ${c.max_uses}` : `${c.current_uses} / 无限`;
+          const expired = c.expires_at && new Date(c.expires_at) < new Date();
+          const statusBadge = !c.is_active
+            ? '<span class="badge badge-danger">停用</span>'
+            : expired
+              ? '<span class="badge badge-danger">已过期</span>'
+              : '<span class="badge badge-success">启用</span>';
+
+          return `
+            <tr>
+              <td>${c.id}</td>
+              <td><span class="code-display">${esc(c.code)}</span></td>
+              <td>${usageText}</td>
+              <td>${statusBadge}</td>
+              <td style="font-size:13px;">${c.expires_at ? formatDate(c.expires_at) : '永不过期'}</td>
+              <td style="font-size:13px;">${formatDate(c.created_at)}</td>
+              <td>
+                <button class="btn-secondary btn-sm" onclick="toggleCode(${c.id}, ${c.is_active})">${c.is_active ? '停用' : '启用'}</button>
+                <button class="btn-danger btn-sm" onclick="deleteCode(${c.id})">删除</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      async function toggleCode(id, isActive) {
+        try {
+          const resp = await fetch('/api/admin/reg-codes/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, isActive: !isActive }),
+          });
+          if (!resp.ok) throw new Error();
+          showToast(isActive ? '已停用' : '已启用', 'success');
+          loadCodes();
+        } catch (e) { showToast('操作失败', 'error'); }
+      }
+
+      async function deleteCode(id) {
+        if (!confirm('确定要删除这个注册码吗？')) return;
+        try {
+          const resp = await fetch('/api/admin/reg-codes', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id }),
+          });
+          if (!resp.ok) throw new Error();
+          showToast('已删除', 'success');
+          loadCodes();
+        } catch (e) { showToast('删除失败', 'error'); }
+      }
+
+      function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+      AdminAuth.init();
+      loadCodes();
+    </script>
+  </body>
+</html>

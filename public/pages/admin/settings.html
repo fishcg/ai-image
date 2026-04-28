@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理后台 - 系统设置</title>
+    <link rel="stylesheet" href="/common/styles.css" />
+    <link rel="stylesheet" href="/pages/admin/admin.css" />
+    <style>
+      .settings-form { display: flex; flex-direction: column; gap: 20px; max-width: 500px; }
+      .setting-group label { display: block; font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 8px; }
+      .setting-group input { width: 100%; }
+      .setting-group .hint { font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+    </style>
+  </head>
+  <body>
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div class="admin-logo">管理后台</div>
+        <nav class="admin-nav">
+          <a href="/pages/admin/dashboard.html" class="admin-nav-item"><span>📊</span> 仪表盘</a>
+          <a href="/pages/admin/users.html" class="admin-nav-item"><span>👥</span> 用户管理</a>
+          <a href="/pages/admin/quota.html" class="admin-nav-item"><span>💰</span> 额度管理</a>
+          <a href="/pages/admin/announcements.html" class="admin-nav-item"><span>📢</span> 公告管理</a>
+          <a href="/pages/admin/settings.html" class="admin-nav-item active"><span>⚙️</span> 系统设置</a>
+          <a href="/pages/admin/reg-codes.html" class="admin-nav-item"><span>🔑</span> 注册码管理</a>
+        </nav>
+        <div class="admin-user">
+          <div id="adminUsername">加载中...</div>
+          <button id="logoutBtn" class="btn-logout">退出登录</button>
+        </div>
+      </aside>
+      <main class="admin-main">
+        <div class="admin-header"><h1>系统设置</h1></div>
+        <div class="admin-card">
+          <h2>基本设置</h2>
+          <div class="settings-form">
+            <div class="setting-group">
+              <label for="monthlyLimit">默认月度额度</label>
+              <input id="monthlyLimit" class="search-input" type="number" min="0" />
+              <div class="hint">每个用户每月可生成的图片数量（未设置自定义额度的用户使用此值）</div>
+            </div>
+            <div class="setting-group">
+              <label for="sessionTtlDays">会话有效期（天）</label>
+              <input id="sessionTtlDays" class="search-input" type="number" min="1" />
+              <div class="hint">用户登录后的会话保持时间</div>
+            </div>
+            <div class="setting-group">
+              <label for="maxUploadMb">最大上传大小（MB）</label>
+              <input id="maxUploadMb" class="search-input" type="number" min="1" />
+              <div class="hint">单次请求的最大上传文件大小</div>
+            </div>
+            <div>
+              <button id="saveBtn" class="btn-primary">保存设置</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="/pages/admin/admin.js"></script>
+    <script>
+      async function loadSettings() {
+        try {
+          const resp = await fetch('/api/admin/settings');
+          if (!resp.ok) { if (resp.status === 401) { window.location.href = '/pages/admin/login.html'; return; } throw new Error(); }
+          const data = await resp.json();
+          const s = data.settings;
+          document.getElementById('monthlyLimit').value = s.monthly_limit || 200;
+          document.getElementById('sessionTtlDays').value = s.session_ttl_days || 30;
+          document.getElementById('maxUploadMb').value = s.max_upload_mb || 60;
+        } catch (e) { console.error(e); showToast('加载设置失败', 'error'); }
+      }
+
+      document.getElementById('saveBtn').addEventListener('click', async () => {
+        const settings = {
+          monthly_limit: document.getElementById('monthlyLimit').value,
+          session_ttl_days: document.getElementById('sessionTtlDays').value,
+          max_upload_mb: document.getElementById('maxUploadMb').value,
+        };
+        try {
+          const resp = await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settings }),
+          });
+          if (!resp.ok) throw new Error();
+          showToast('保存成功', 'success');
+        } catch (e) { console.error(e); showToast('保存失败', 'error'); }
+      });
+
+      AdminAuth.init();
+      loadSettings();
+    </script>
+  </body>
+</html>

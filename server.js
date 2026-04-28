@@ -13,6 +13,10 @@ const promptHistoryRoutes = require('./routes/prompt-history');
 const adminAuthRoutes = require('./routes/admin/auth');
 const adminUsersRoutes = require('./routes/admin/users');
 const adminQuotaRoutes = require('./routes/admin/quota');
+const adminSettingsRoutes = require('./routes/admin/settings');
+const adminAnnouncementsRoutes = require('./routes/admin/announcements');
+const adminRegCodesRoutes = require('./routes/admin/reg-codes');
+const { getCachedSetting } = adminSettingsRoutes;
 const { http: httpConfig, dc, ai, nanoai, jimeng, gptimage, mysql: mysqlConfig, auth: authConfig } = require('./config');
 
 const PORT = Number(process.env.PORT || httpConfig?.port || 7992);
@@ -56,7 +60,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (req.method === 'POST' && url.pathname === '/api/login') {
-    await authRoutes.login({ req, res, pool, sessionTtlDays: SESSION_TTL_DAYS, monthlyLimit: MONTHLY_LIMIT });
+    await authRoutes.login({ req, res, pool, sessionTtlDays: await getCachedSetting(pool, 'session_ttl_days', SESSION_TTL_DAYS), monthlyLimit: await getCachedSetting(pool, 'monthly_limit', MONTHLY_LIMIT) });
     return;
   }
   if (req.method === 'POST' && url.pathname === '/api/logout') {
@@ -64,7 +68,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/me') {
-    await authRoutes.me({ req, res, pool, monthlyLimit: MONTHLY_LIMIT });
+    await authRoutes.me({ req, res, pool, monthlyLimit: await getCachedSetting(pool, 'monthly_limit', MONTHLY_LIMIT) });
     return;
   }
   if (req.method === 'POST' && url.pathname === '/api/generate') {
@@ -82,8 +86,7 @@ const server = http.createServer(async (req, res) => {
       nanoai,
       jimeng,
       gptimage,
-      monthlyLimit: MONTHLY_LIMIT,
-      providerTimeoutMsDashScope,
+      monthlyLimit: await getCachedSetting(pool, 'monthly_limit', MONTHLY_LIMIT),      providerTimeoutMsDashScope,
       providerTimeoutMsNanoAi,
       providerTimeoutMsJiMeng,
       providerTimeoutMsGptImage,
@@ -199,6 +202,14 @@ const server = http.createServer(async (req, res) => {
       await adminUsersRoutes.getUserDetail({ req, res, pool });
       return;
     }
+    if (req.method === 'GET' && url.pathname === '/api/admin/users/detail') {
+      await adminUsersRoutes.getUserDetail({ req, res, pool });
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/admin/users/generations') {
+      await adminUsersRoutes.getUserGenerations({ req, res, pool });
+      return;
+    }
     if (req.method === 'POST' && url.pathname === '/api/admin/users/toggle-status') {
       const { readBody } = require('./lib/http');
       const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
@@ -222,7 +233,7 @@ const server = http.createServer(async (req, res) => {
 
     // Admin quota
     if (req.method === 'GET' && url.pathname === '/api/admin/quota') {
-      await adminQuotaRoutes.getUserQuota({ req, res, pool, monthlyLimit: MONTHLY_LIMIT });
+      await adminQuotaRoutes.getUserQuota({ req, res, pool, monthlyLimit: await getCachedSetting(pool, 'monthly_limit', MONTHLY_LIMIT) });
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/admin/quota/set-limit') {
@@ -243,6 +254,72 @@ const server = http.createServer(async (req, res) => {
       await adminQuotaRoutes.batchSetLimit({ req, res, pool, body });
       return;
     }
+
+    // Admin settings
+    if (req.method === 'GET' && url.pathname === '/api/admin/settings') {
+      await adminSettingsRoutes.getSettings({ req, res, pool });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/settings') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminSettingsRoutes.updateSettings({ req, res, pool, body });
+      return;
+    }
+
+    // Admin announcements
+    if (req.method === 'GET' && url.pathname === '/api/admin/announcements') {
+      await adminAnnouncementsRoutes.listAnnouncements({ req, res, pool });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/announcements') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminAnnouncementsRoutes.createAnnouncement({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/announcements/update') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminAnnouncementsRoutes.updateAnnouncement({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'DELETE' && url.pathname === '/api/admin/announcements') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminAnnouncementsRoutes.deleteAnnouncement({ req, res, pool, body });
+      return;
+    }
+
+    // Admin registration codes
+    if (req.method === 'GET' && url.pathname === '/api/admin/reg-codes') {
+      await adminRegCodesRoutes.listCodes({ req, res, pool });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/reg-codes') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminRegCodesRoutes.createCode({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/reg-codes/update') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminRegCodesRoutes.updateCode({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'DELETE' && url.pathname === '/api/admin/reg-codes') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminRegCodesRoutes.deleteCode({ req, res, pool, body });
+      return;
+    }
+  }
+
+  // 公开公告 API（无需登录）
+  if (req.method === 'GET' && url.pathname === '/api/announcements') {
+    await adminAnnouncementsRoutes.getActiveAnnouncements({ req, res, pool });
+    return;
   }
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {

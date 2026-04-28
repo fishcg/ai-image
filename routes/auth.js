@@ -35,12 +35,17 @@ async function register({ req, res, pool, passwordMinLen, registrationCodes }) {
   if (uErr) return sendJson(res, 400, { error: uErr });
   const pErr = validatePassword(password, { minLen: passwordMinLen });
   if (pErr) return sendJson(res, 400, { error: pErr });
-  const iErr = validateInviteCode(inviteCode, { registrationCodes });
+  const { error: iErr, codeId } = await validateInviteCode(inviteCode, { registrationCodes, pool });
   if (iErr) return sendJson(res, registrationCodes.length ? 400 : 500, { error: iErr });
 
   const passwordHash = pbkdf2HashPassword(password);
   try {
     await pool.query('INSERT INTO users (username, password_hash) VALUES (?, ?)', [username, passwordHash]);
+
+    // 如果使用了数据库中的注册码，增加使用次数
+    if (codeId) {
+      await pool.query('UPDATE registration_codes SET current_uses = current_uses + 1 WHERE id = ?', [codeId]).catch(() => {});
+    }
   } catch (err) {
     if (String(err?.code) === 'ER_DUP_ENTRY') {
       sendJson(res, 409, { error: '用户名已存在' });
