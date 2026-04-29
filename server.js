@@ -11,12 +11,14 @@ const galleryRoutes = require('./routes/gallery');
 const aiAssistantRoutes = require('./routes/ai-assistant');
 const promptHistoryRoutes = require('./routes/prompt-history');
 const presetsRoutes = require('./routes/presets');
+const feedbackRoutes = require('./routes/feedback');
 const adminAuthRoutes = require('./routes/admin/auth');
 const adminUsersRoutes = require('./routes/admin/users');
 const adminQuotaRoutes = require('./routes/admin/quota');
 const adminSettingsRoutes = require('./routes/admin/settings');
 const adminAnnouncementsRoutes = require('./routes/admin/announcements');
 const adminRegCodesRoutes = require('./routes/admin/reg-codes');
+const adminFeedbackRoutes = require('./routes/admin/feedback');
 const { getCachedSetting } = adminSettingsRoutes;
 const { http: httpConfig, dc, ai, nanoai, jimeng, gptimage, mysql: mysqlConfig, auth: authConfig } = require('./config');
 
@@ -336,6 +338,32 @@ const server = http.createServer(async (req, res) => {
       await adminRegCodesRoutes.deleteCode({ req, res, pool, body });
       return;
     }
+
+    // Admin feedback
+    if (req.method === 'GET' && url.pathname === '/api/admin/feedback') {
+      await adminFeedbackRoutes.listFeedback({ req, res, pool });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/feedback/update') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminFeedbackRoutes.updateFeedback({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'DELETE' && url.pathname === '/api/admin/feedback') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminFeedbackRoutes.deleteFeedback({ req, res, pool, body });
+      return;
+    }
+  }
+
+  // 公开反馈提交 API
+  if (req.method === 'POST' && url.pathname === '/api/feedback') {
+    const { readBody } = require('./lib/http');
+    const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+    await feedbackRoutes.submitFeedback({ req, res, pool, body });
+    return;
   }
 
   // 公开公告 API（无需登录）

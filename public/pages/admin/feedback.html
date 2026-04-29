@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理后台 - 意见反馈</title>
+    <link rel="stylesheet" href="/common/styles.css" />
+    <link rel="stylesheet" href="/pages/admin/admin.css" />
+  </head>
+  <body>
+    <div class="admin-layout">
+      <div id="admin-sidebar-container"></div>
+      <main class="admin-main">
+        <div class="admin-header"><h1>意见反馈</h1></div>
+
+        <div class="admin-card">
+          <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <select id="statusFilter" class="search-input" style="flex: 0 0 150px;">
+              <option value="">全部状态</option>
+              <option value="pending">待处理</option>
+              <option value="read">已读</option>
+              <option value="resolved">已解决</option>
+            </select>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>用户</th>
+                  <th>内容</th>
+                  <th>联系方式</th>
+                  <th>状态</th>
+                  <th>时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="feedbackTableBody">
+                <tr><td colspan="7" style="text-align:center;padding:40px;">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button id="prevPage">上一页</button>
+            <span class="page-info" id="pageInfo">-</span>
+            <button id="nextPage">下一页</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 详情/回复弹窗 -->
+    <div id="detailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;">
+      <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:32px;width:min(550px,90%);margin:auto;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
+        <h3 style="color:#fff;margin:0 0 16px 0;font-size:18px;">反馈详情</h3>
+        <div id="detailUser" style="font-size:14px;color:rgba(255,255,255,0.6);margin-bottom:8px;"></div>
+        <div id="detailContent" style="font-size:14px;color:rgba(255,255,255,0.9);line-height:1.6;padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;margin-bottom:16px;white-space:pre-wrap;"></div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:14px;color:rgba(255,255,255,0.7);margin-bottom:6px;">管理员回复</label>
+          <textarea id="detailReply" class="search-input" rows="3" placeholder="输入回复内容（可选）"></textarea>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:14px;color:rgba(255,255,255,0.7);margin-bottom:6px;">状态</label>
+          <select id="detailStatus" class="search-input">
+            <option value="pending">待处理</option>
+            <option value="read">已读</option>
+            <option value="resolved">已解决</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+          <button id="detailCancel" class="btn-secondary">取消</button>
+          <button id="detailSave" class="btn-primary">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/pages/admin/admin.js"></script>
+    <script>
+      let currentPage = 1;
+      let totalPages = 1;
+      let allFeedback = [];
+
+      const statusLabels = { pending: '待处理', read: '已读', resolved: '已解决' };
+      const statusColors = { pending: 'badge-danger', read: '', resolved: 'badge-success' };
+
+      async function loadFeedback() {
+        const status = document.getElementById('statusFilter').value;
+        try {
+          let url = `/api/admin/feedback?page=${currentPage}&limit=20`;
+          if (status) url += `&status=${status}`;
+          const resp = await fetch(url);
+          if (!resp.ok) { if (resp.status === 401) { window.location.href = '/pages/admin/login.html'; return; } throw new Error(); }
+          const data = await resp.json();
+          allFeedback = data.feedback || [];
+          renderTable(allFeedback);
+          updatePagination(data.pagination);
+        } catch (e) { console.error(e); }
+      }
+
+      function renderTable(list) {
+        const tbody = document.getElementById('feedbackTableBody');
+        if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">暂无反馈</td></tr>'; return; }
+        tbody.innerHTML = list.map(f => `
+          <tr>
+            <td>${f.id}</td>
+            <td>${f.username ? esc(f.username) : '<span style="color:rgba(255,255,255,0.4)">匿名</span>'}</td>
+            <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.content)}</td>
+            <td>${f.contact ? esc(f.contact) : '-'}</td>
+            <td><span class="badge ${statusColors[f.status] || ''}">${statusLabels[f.status] || f.status}</span></td>
+            <td style="font-size:13px;">${formatDate(f.created_at)}</td>
+            <td>
+              <button class="btn-secondary btn-sm" onclick="openDetail(${f.id})">查看</button>
+              <button class="btn-danger btn-sm" onclick="deleteFeedback(${f.id})">删除</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      function updatePagination(p) {
+        currentPage = p.page;
+        totalPages = p.totalPages;
+        document.getElementById('pageInfo').textContent = `第 ${p.page} / ${p.totalPages} 页 (共 ${p.total} 条)`;
+        document.getElementById('prevPage').disabled = currentPage <= 1;
+        document.getElementById('nextPage').disabled = currentPage >= totalPages;
+      }
+
+      function openDetail(id) {
+        const f = allFeedback.find(x => x.id === id);
+        if (!f) return;
+        document.getElementById('detailUser').textContent = `${f.username || '匿名'} · ${formatDate(f.created_at)}${f.contact ? ' · ' + f.contact : ''}`;
+        document.getElementById('detailContent').textContent = f.content;
+        document.getElementById('detailReply').value = f.admin_reply || '';
+        document.getElementById('detailStatus').value = f.status;
+        document.getElementById('detailModal').style.display = 'block';
+        document.getElementById('detailModal').dataset.id = id;
+      }
+
+      document.getElementById('detailCancel').addEventListener('click', () => {
+        document.getElementById('detailModal').style.display = 'none';
+      });
+      document.getElementById('detailModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('detailModal')) document.getElementById('detailModal').style.display = 'none';
+      });
+
+      document.getElementById('detailSave').addEventListener('click', async () => {
+        const id = Number(document.getElementById('detailModal').dataset.id);
+        const status = document.getElementById('detailStatus').value;
+        const adminReply = document.getElementById('detailReply').value.trim();
+        try {
+          const resp = await fetch('/api/admin/feedback/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, status, adminReply }),
+          });
+          if (!resp.ok) throw new Error();
+          showToast('已更新', 'success');
+          document.getElementById('detailModal').style.display = 'none';
+          loadFeedback();
+        } catch { showToast('更新失败', 'error'); }
+      });
+
+      async function deleteFeedback(id) {
+        if (!confirm('确定要删除这条反馈吗？')) return;
+        try {
+          const resp = await fetch('/api/admin/feedback', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id }),
+          });
+          if (!resp.ok) throw new Error();
+          showToast('已删除', 'success');
+          loadFeedback();
+        } catch { showToast('删除失败', 'error'); }
+      }
+
+      function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+      document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; loadFeedback(); });
+      document.getElementById('prevPage').addEventListener('click', () => { if (currentPage > 1) { currentPage--; loadFeedback(); } });
+      document.getElementById('nextPage').addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; loadFeedback(); } });
+
+      AdminLayout.init({ activePage: 'feedback' });
+      loadFeedback();
+    </script>
+  </body>
+</html>

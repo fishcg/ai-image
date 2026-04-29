@@ -154,6 +154,9 @@ const Components = {
 
     // 加载公告
     this.loadAnnouncements();
+
+    // 添加反馈浮窗
+    this.initFeedback();
   },
 
   async loadAnnouncements() {
@@ -206,6 +209,77 @@ const Components = {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  },
+
+  initFeedback() {
+    // 浮动按钮
+    const btn = document.createElement('button');
+    btn.id = 'feedbackBtn';
+    btn.innerHTML = '💬';
+    btn.title = '意见反馈';
+    btn.style.cssText = 'position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#10b981,#34d399);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 4px 16px rgba(16,185,129,0.4);z-index:8000;transition:transform 0.2s;display:flex;align-items:center;justify-content:center;';
+    btn.addEventListener('mouseenter', () => { btn.style.transform = 'scale(1.1)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.transform = 'scale(1)'; });
+
+    // 反馈面板
+    const panel = document.createElement('div');
+    panel.id = 'feedbackPanel';
+    panel.style.cssText = 'display:none;position:fixed;bottom:84px;right:24px;width:320px;background:rgba(30,41,59,0.98);border:1px solid rgba(255,255,255,0.15);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:8000;backdrop-filter:blur(10px);';
+    panel.innerHTML = `
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:16px;font-weight:600;color:#fff;">意见反馈</span>
+        <button id="feedbackClose" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:18px;cursor:pointer;padding:0 4px;">×</button>
+      </div>
+      <div style="padding:16px 20px;">
+        <textarea id="feedbackContent" placeholder="请描述你的建议或遇到的问题..." style="width:100%;height:100px;resize:vertical;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;padding:10px;font-size:14px;"></textarea>
+        <input id="feedbackContact" type="text" placeholder="联系方式（可选）" style="width:100%;margin-top:10px;padding:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:14px;" />
+        <button id="feedbackSubmit" style="width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg,#10b981,#34d399);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">提交反馈</button>
+        <div id="feedbackMsg" style="margin-top:8px;font-size:13px;text-align:center;display:none;"></div>
+      </div>
+    `;
+
+    document.body.appendChild(btn);
+    document.body.appendChild(panel);
+
+    btn.addEventListener('click', () => {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('feedbackClose').addEventListener('click', () => {
+      panel.style.display = 'none';
+    });
+
+    document.getElementById('feedbackSubmit').addEventListener('click', async () => {
+      const content = document.getElementById('feedbackContent').value.trim();
+      const contact = document.getElementById('feedbackContact').value.trim();
+      const msgEl = document.getElementById('feedbackMsg');
+      const submitBtn = document.getElementById('feedbackSubmit');
+
+      if (!content) { msgEl.textContent = '请输入反馈内容'; msgEl.style.color = '#ef4444'; msgEl.style.display = 'block'; return; }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = '提交中...';
+      try {
+        const resp = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, contact }),
+        });
+        if (!resp.ok) { const d = await resp.json(); throw new Error(d.error || '提交失败'); }
+        msgEl.textContent = '感谢你的反馈！';
+        msgEl.style.color = '#10b981';
+        msgEl.style.display = 'block';
+        document.getElementById('feedbackContent').value = '';
+        document.getElementById('feedbackContact').value = '';
+        setTimeout(() => { panel.style.display = 'none'; msgEl.style.display = 'none'; }, 2000);
+      } catch (err) {
+        msgEl.textContent = err.message || '提交失败';
+        msgEl.style.color = '#ef4444';
+        msgEl.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '提交反馈';
+      }
+    });
   }
 };
 

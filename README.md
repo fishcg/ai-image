@@ -29,7 +29,7 @@ npm i
 2) 初始化数据库
 
 ```bash
-mysql -u root -p < accounts.sql
+mysql -u root -p < init_data.sql
 ```
 
 3) 配置环境变量（推荐）或在本地创建 `config.js`
@@ -95,7 +95,7 @@ UI 可切换到 `Google Nano banana pro`（通过 NanoAI 网关）。
 
 ## 数据库表
 
-建表文件：`accounts.sql`
+建表文件：`init_data.sql`
 
 - `users`：用户账号与密码哈希
 - `sessions`：登录会话（Cookie `sid` 的 hash）

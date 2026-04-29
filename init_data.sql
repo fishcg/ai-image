@@ -1,9 +1,13 @@
--- MySQL schema for ai-image account system
+-- MySQL schema for ai-image
 -- Usage:
---   mysql -u root -p < accounts.sql
+--   mysql -u root -p < init_data.sql
 
 CREATE DATABASE IF NOT EXISTS ai_image DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE ai_image;
+
+-- ============================================================
+-- 用户系统
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -30,14 +34,17 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE TABLE IF NOT EXISTS usage_monthly (
   user_id BIGINT UNSIGNED NOT NULL,
-  month CHAR(7) NOT NULL, -- format: YYYY-MM
+  month CHAR(7) NOT NULL,
   used INT UNSIGNED NOT NULL DEFAULT 0,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, month),
   CONSTRAINT fk_usage_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Generation history table
+-- ============================================================
+-- 图片生成
+-- ============================================================
+
 CREATE TABLE IF NOT EXISTS generation_history (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL,
@@ -52,7 +59,6 @@ CREATE TABLE IF NOT EXISTS generation_history (
   CONSTRAINT fk_history_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Favorites table
 CREATE TABLE IF NOT EXISTS favorites (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL,
@@ -66,18 +72,17 @@ CREATE TABLE IF NOT EXISTS favorites (
   CONSTRAINT fk_favorites_history FOREIGN KEY (history_id) REFERENCES generation_history(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Gallery table - 首页展示的图片（用户分享 + 管理员添加）
 CREATE TABLE IF NOT EXISTS gallery (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id BIGINT UNSIGNED, -- NULL 表示管理员添加
-  history_id BIGINT UNSIGNED, -- NULL 表示管理员添加
+  user_id BIGINT UNSIGNED,
+  history_id BIGINT UNSIGNED,
   image_url VARCHAR(1024) NOT NULL,
   prompt TEXT,
   description TEXT,
   tags VARCHAR(255),
   likes INT UNSIGNED NOT NULL DEFAULT 0,
-  is_featured BOOLEAN NOT NULL DEFAULT FALSE, -- 是否精选
-  status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'approved', -- 审核状态
+  is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+  status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'approved',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -87,7 +92,10 @@ CREATE TABLE IF NOT EXISTS gallery (
   CONSTRAINT fk_gallery_history FOREIGN KEY (history_id) REFERENCES generation_history(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Prompt history table - 用户提示词历史记录
+-- ============================================================
+-- 提示词与预设
+-- ============================================================
+
 CREATE TABLE IF NOT EXISTS prompt_history (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id BIGINT UNSIGNED NOT NULL,
@@ -101,7 +109,22 @@ CREATE TABLE IF NOT EXISTS prompt_history (
   CONSTRAINT fk_prompt_history_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Admin users table - 管理员账号
+CREATE TABLE IF NOT EXISTS user_presets (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(128) NOT NULL,
+  prompt TEXT NOT NULL,
+  negative_prompt TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_user (user_id),
+  CONSTRAINT fk_presets_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 管理后台
+-- ============================================================
+
 CREATE TABLE IF NOT EXISTS admin_users (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   username VARCHAR(64) NOT NULL,
@@ -112,7 +135,6 @@ CREATE TABLE IF NOT EXISTS admin_users (
   UNIQUE KEY uk_admin_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Admin sessions table - 管理员会话
 CREATE TABLE IF NOT EXISTS admin_sessions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   admin_id BIGINT UNSIGNED NOT NULL,
@@ -125,8 +147,70 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
   CONSTRAINT fk_admin_sessions_admin FOREIGN KEY (admin_id) REFERENCES admin_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insert default admin account (username: admin, password: admin123)
--- Password hash generated with: crypto.createHash('sha256').update('admin123').digest('hex')
+CREATE TABLE IF NOT EXISTS system_settings (
+  `key` VARCHAR(64) NOT NULL,
+  `value` TEXT NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 公告与注册码
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  type ENUM('info', 'warning', 'success') NOT NULL DEFAULT 'info',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  start_time DATETIME DEFAULT NULL,
+  end_time DATETIME DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_active_time (is_active, start_time, end_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS registration_codes (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  code VARCHAR(64) NOT NULL,
+  max_uses INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = unlimited',
+  current_uses INT UNSIGNED NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  expires_at DATETIME DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_code (code),
+  KEY idx_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 用户反馈
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS feedback (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED DEFAULT NULL,
+  username VARCHAR(64) DEFAULT NULL,
+  content TEXT NOT NULL,
+  contact VARCHAR(255) DEFAULT NULL,
+  status ENUM('pending', 'read', 'resolved') NOT NULL DEFAULT 'pending',
+  admin_reply TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_status_created (status, created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 初始数据
+-- ============================================================
+
+-- 默认管理员账号（用户名: admin, 密码: admin123）
 INSERT INTO admin_users (username, password_hash, role) VALUES
 ('admin', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'super_admin')
 ON DUPLICATE KEY UPDATE username=username;
+
+SELECT 'Database initialized successfully' AS status;
+SELECT 'Default admin: username=admin, password=admin123' AS info;
