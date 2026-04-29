@@ -231,6 +231,7 @@
       img.src = url;
       img.alt = 'Generated image';
       img.loading = 'lazy';
+      img.dataset.originalSrc = originalSrc;
       img.addEventListener('click', () => openImageModal(url, originalSrc));
 
       const overlay = document.createElement('div');
@@ -470,58 +471,111 @@
     }
   }
 
-  // Image modal
+  // Image modal - gallery state
+  let modalGallery = null; // { items: [{src, originalSrc}], index }
+
+  function collectGalleryFromHistory() {
+    const items = [];
+    const imgs = historyList.querySelectorAll('.history-image img');
+    imgs.forEach((img) => {
+      items.push({
+        src: img.src,
+        originalSrc: img.dataset?.originalSrc || '',
+      });
+    });
+    return items;
+  }
+
+  function collectGalleryFromFavorites() {
+    const items = [];
+    const imgs = favoritesList.querySelectorAll('.favorites-image img');
+    imgs.forEach((img) => {
+      items.push({
+        src: img.src,
+        originalSrc: '',
+      });
+    });
+    return items;
+  }
+
   function openImageModal(url, originalSrc = '') {
+    // Build gallery from current tab
+    const items = currentTab === 'history' ? collectGalleryFromHistory() : collectGalleryFromFavorites();
+    const index = items.findIndex(item => item.src === url);
+    modalGallery = { items, index: Math.max(0, index) };
+
+    showGalleryImage(modalGallery.index);
+    imageModal.hidden = false;
+    syncNavButtons();
+  }
+
+  function showGalleryImage(index) {
+    if (!modalGallery || index < 0 || index >= modalGallery.items.length) return;
+    modalGallery.index = index;
+
+    const item = modalGallery.items[index];
     const imgOriginal = document.getElementById('imageModalImgOriginal');
     const compareWrapper = document.getElementById('compareSliderWrapper');
     const compareSliderLine = document.getElementById('compareSliderLine');
-    const compareRange = document.getElementById('compareRange');
+    const compareRangeEl = document.getElementById('compareRange');
+    const toggleBtn = document.getElementById('toggleOriginal');
 
-    imageModalImg.src = url;
+    imageModalImg.src = item.src;
     imageModalImg.style.transform = 'scale(1)';
     zoomRange.value = '100';
     zoomValue.textContent = '100%';
 
-    // Check if original image exists and is different
-    const hasOriginal = Boolean(originalSrc) && originalSrc !== url;
+    const hasOriginal = Boolean(item.originalSrc) && item.originalSrc !== item.src;
+
+    if (toggleBtn) toggleBtn.hidden = !hasOriginal;
 
     if (hasOriginal && imgOriginal && compareWrapper && compareSliderLine) {
-      // Setup comparison mode
-      imgOriginal.src = originalSrc;
+      imgOriginal.src = item.originalSrc;
       imgOriginal.style.transform = 'scale(1)';
-
-      // Set initial position to 0% (show original)
-      if (compareRange) {
-        compareRange.value = '0';
-      }
+      if (compareRangeEl) compareRangeEl.value = '0';
       imageModalImg.style.clipPath = 'inset(0 0 0 0%)';
       compareSliderLine.style.left = '0%';
       compareSliderLine.style.display = 'block';
 
-      // Wait for image to load to get actual width
       const updateSliderWidth = () => {
         const container = imageModalImg.closest('.image-compare-container');
         if (container) {
-          const width = container.offsetWidth;
-          compareWrapper.style.width = `${width}px`;
+          compareWrapper.style.width = `${container.offsetWidth}px`;
           compareWrapper.hidden = false;
         }
       };
-
-      if (imageModalImg.complete) {
-        setTimeout(updateSliderWidth, 0);
-      } else {
-        imageModalImg.addEventListener('load', updateSliderWidth, { once: true });
-      }
+      if (imageModalImg.complete) setTimeout(updateSliderWidth, 0);
+      else imageModalImg.addEventListener('load', updateSliderWidth, { once: true });
     } else if (compareWrapper && compareSliderLine && imgOriginal) {
-      // No comparison mode
       compareWrapper.hidden = true;
       compareSliderLine.style.display = 'none';
       imgOriginal.src = '';
       imageModalImg.style.clipPath = '';
     }
 
-    imageModal.hidden = false;
+    syncNavButtons();
+  }
+
+  function syncNavButtons() {
+    const prevBtn = document.getElementById('prevImage');
+    const nextBtn = document.getElementById('nextImage');
+    if (!modalGallery || modalGallery.items.length <= 1) {
+      if (prevBtn) prevBtn.hidden = true;
+      if (nextBtn) nextBtn.hidden = true;
+      return;
+    }
+    if (prevBtn) { prevBtn.hidden = false; prevBtn.disabled = modalGallery.index <= 0; }
+    if (nextBtn) { nextBtn.hidden = false; nextBtn.disabled = modalGallery.index >= modalGallery.items.length - 1; }
+  }
+
+  function toggleFullscreen() {
+    const modalCard = document.querySelector('#imageModal .imageModalCard');
+    if (!modalCard) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      modalCard.requestFullscreen().catch(() => {});
+    }
   }
 
   function closeModal(modalId) {
@@ -617,6 +671,57 @@
   imageModal.addEventListener('click', (e) => {
     if (e.target === imageModal) {
       closeModal('imageModal');
+    }
+  });
+
+  // Navigation buttons
+  document.getElementById('prevImage')?.addEventListener('click', () => {
+    if (modalGallery) showGalleryImage(modalGallery.index - 1);
+  });
+  document.getElementById('nextImage')?.addEventListener('click', () => {
+    if (modalGallery) showGalleryImage(modalGallery.index + 1);
+  });
+
+  // Fullscreen button
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+  if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', () => {
+      const isFs = Boolean(document.fullscreenElement);
+      fullscreenBtn.textContent = isFs ? '退出全屏' : '全屏';
+      const modalCard = document.querySelector('#imageModal .imageModalCard');
+      if (modalCard) modalCard.classList.toggle('fullscreen-mode', isFs);
+    });
+  }
+
+  // Toggle original button
+  document.getElementById('toggleOriginal')?.addEventListener('click', () => {
+    const btn = document.getElementById('toggleOriginal');
+    const imgOriginal = document.getElementById('imageModalImgOriginal');
+    const compareWrapper = document.getElementById('compareSliderWrapper');
+    if (!btn || !imgOriginal) return;
+    const showing = btn.getAttribute('aria-pressed') === 'true';
+    btn.setAttribute('aria-pressed', String(!showing));
+    btn.textContent = showing ? '显示原图' : '显示新图';
+    imgOriginal.style.zIndex = showing ? '1' : '3';
+    if (compareWrapper) compareWrapper.hidden = !showing;
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (imageModal.hidden) return;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (modalGallery) showGalleryImage(modalGallery.index - 1);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      if (modalGallery) showGalleryImage(modalGallery.index + 1);
+    } else if (e.key === 'Escape') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else closeModal('imageModal');
+    } else if ((e.key === 'f' || e.key === 'F') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      toggleFullscreen();
     }
   });
 

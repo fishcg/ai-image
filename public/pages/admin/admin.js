@@ -5,8 +5,8 @@ const NAV_ITEMS = [
   { key: 'users',     href: '/pages/admin/users.html',     icon: '👥', label: '用户管理' },
   { key: 'quota',     href: '/pages/admin/quota.html',     icon: '💰', label: '额度管理' },
   { key: 'announcements', href: '/pages/admin/announcements.html', icon: '📢', label: '公告管理' },
-  { key: 'settings',  href: '/pages/admin/settings.html',  icon: '⚙️', label: '系统设置' },
   { key: 'reg-codes', href: '/pages/admin/reg-codes.html', icon: '🔑', label: '注册码管理' },
+  { key: 'settings',  href: '/pages/admin/settings.html',  icon: '⚙️', label: '系统设置' },
 ];
 
 const AdminLayout = {

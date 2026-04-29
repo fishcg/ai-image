@@ -2367,6 +2367,43 @@ function init() {
     showModalGalleryIndex((modalGallery.index || 0) + 1);
   });
 
+  // 全屏模式
+  const fullscreenBtn = $('fullscreenBtn');
+  if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', () => {
+      const isFs = Boolean(document.fullscreenElement);
+      fullscreenBtn.textContent = isFs ? '退出全屏' : '全屏';
+      const modalCard = document.querySelector('#imageModal .imageModalCard');
+      if (modalCard) modalCard.classList.toggle('fullscreen-mode', isFs);
+    });
+  }
+
+  // 键盘快捷键
+  document.addEventListener('keydown', (e) => {
+    const modal = $('imageModal');
+    if (!modal || modal.hidden) return;
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (modalGallery) showModalGalleryIndex((modalGallery.index || 0) - 1);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      if (modalGallery) showModalGalleryIndex((modalGallery.index || 0) + 1);
+    } else if (e.key === 'Escape') {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        closeModal('imageModal');
+      }
+    } else if (e.key === 'f' || e.key === 'F') {
+      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    }
+  });
+
   $('submit').addEventListener('click', handleSubmit);
   $('clear').addEventListener('click', handleClear);
   $('submitText')?.addEventListener('click', handleSubmitText);
@@ -3106,6 +3143,20 @@ function escapeHtml(text) {
 /**
  * 显示账号被禁用警告
  */
+/**
+ * 切换全屏模式
+ */
+function toggleFullscreen() {
+  const modalCard = document.querySelector('#imageModal .imageModalCard');
+  if (!modalCard) return;
+
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    modalCard.requestFullscreen().catch(() => {});
+  }
+}
+
 function showDisabledWarning() {
   // 避免重复显示
   if (document.getElementById('disabledWarning')) return;
