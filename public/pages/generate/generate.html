@@ -123,10 +123,7 @@
             <label class="label" for="modelId">选择模型</label>
             <div class="modelPick selectWrap">
               <select id="modelId" title="选择模型">
-                <option value="dashscope" selected>快速修图</option>
-                <option value="google-nano-banana-pro">精修（速度较慢，失败请重试）</option>
-                <option value="jimeng">即梦4.0（支持4K超清，速度适中）</option>
-                <option value="gpt-image">GPT Image（高质量，支持2K）</option>
+                <option value="gpt-image" selected>GPT Image（高质量，支持2K）</option>
               </select>
             </div>
           </div>
@@ -239,8 +236,8 @@
           </div>
           <div class="effectGroups">
             <div class="effectGroup">
-              <div class="effectTitle">影调调整</div>
-              <div class="chips">
+              <div class="effectTitle collapsed" onclick="this.classList.toggle('collapsed');this.nextElementSibling.hidden=!this.nextElementSibling.hidden">影调调整</div>
+              <div class="chips" hidden>
                 <button class="chip" type="button" data-prompt="电影调色">电影调色</button>
                 <button class="chip" type="button" data-prompt="日系清透">日系清透</button>
                 <button class="chip" type="button" data-prompt="HDR 质感">HDR 质感</button>
@@ -277,7 +274,8 @@
             </div>
 
             <div class="effectGroup">
-              <div class="effectTitle">面容调整</div>
+              <div class="effectTitle collapsed" onclick="this.classList.toggle('collapsed');this.nextElementSibling.hidden=!this.nextElementSibling.hidden">面容调整</div>
+              <div hidden>
               <div class="chips">
                 <button class="chip" type="button" data-prompt="肤色校正">肤色校正</button>
                 <button class="chip" type="button" data-prompt="去油光">去油光</button>
@@ -321,11 +319,12 @@
                   <span id="faceStrengthValue" class="badge">3</span>
                 </div>
               </div>
+              </div>
             </div>
 
             <div class="effectGroup">
-              <div class="effectTitle">环境调整</div>
-              <div class="chips">
+              <div class="effectTitle collapsed" onclick="this.classList.toggle('collapsed');this.nextElementSibling.hidden=!this.nextElementSibling.hidden">环境调整</div>
+              <div class="chips" hidden>
                 <button class="chip" type="button" data-prompt="固定人物">固定人物</button>
                 <button class="chip" type="button" data-prompt="闪电效果">闪电效果</button>
                 <button class="chip" type="button" data-prompt="武器发光">武器发光</button>
@@ -417,10 +416,7 @@
                 <label class="label" for="modelIdText">选择模型</label>
                 <div class="modelPick selectWrap">
                   <select id="modelIdText" title="选择模型">
-                    <option value="dashscope" selected>快速生成</option>
-                    <option value="google-nano-banana-pro">精修（速度较慢，失败请重试）</option>
-                    <option value="jimeng">即梦4.0（支持4K超清，速度适中）</option>
-                    <option value="gpt-image">GPT Image（高质量，支持2K）</option>
+                    <option value="gpt-image" selected>GPT Image（高质量，支持2K）</option>
                   </select>
                 </div>
               </div>
@@ -479,8 +475,8 @@
             </div>
             <div class="effectGroups">
               <div class="effectGroup">
-                <div class="effectTitle">预设效果</div>
-                <div class="chips">
+                <div class="effectTitle collapsed" onclick="this.classList.toggle('collapsed');this.nextElementSibling.hidden=!this.nextElementSibling.hidden">预设效果</div>
+                <div class="chips" hidden>
                   <button class="chip" type="button" data-prompt-text="纯色背景（方便抠图），背景干净，和主体颜色有反差，无渐变，无杂物，无阴影投射到背景上。">纯色背景（方便抠图）</button>
                   <button class="chip" type="button" data-prompt-text="产品棚拍风格，纯白背景，柔光箱打光，阴影自然，细节清晰。">白底产品图</button>
                   <button class="chip" type="button" data-prompt-text="电影级光影，浅景深，真实质感，细节丰富，高动态范围。">电影质感</button>

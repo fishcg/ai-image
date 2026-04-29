@@ -2998,6 +2998,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 扩图模式
   initExpandMode();
+
+  // 动态加载模型配置
+  loadModelConfig();
 });
 
 /**
@@ -3299,6 +3302,48 @@ function escapeHtml(text) {
 /**
  * 显示账号被禁用警告
  */
+/**
+ * 动态加载模型配置
+ */
+const MODEL_LABELS = {
+  'gpt-image': { img2img: 'GPT Image（高质量，支持2K）', txt2img: 'GPT Image（高质量，支持2K）' },
+  'dashscope': { img2img: '快速修图', txt2img: '快速生成' },
+  'google-nano-banana-pro': { img2img: '精修（速度较慢，失败请重试）', txt2img: '精修（速度较慢，失败请重试）' },
+  'jimeng': { img2img: '即梦4.0（支持4K超清，速度适中）', txt2img: '即梦4.0（支持4K超清，速度适中）' },
+};
+
+async function loadModelConfig() {
+  try {
+    const resp = await fetch('/api/model-config');
+    if (!resp.ok) return;
+    const data = await resp.json();
+
+    const enabledModels = data.enabledModels || Object.keys(MODEL_LABELS);
+    const defaultModel = data.defaultModel || 'gpt-image';
+
+    populateModelSelect('modelId', enabledModels, defaultModel, 'img2img');
+    populateModelSelect('modelIdText', enabledModels, defaultModel, 'txt2img');
+  } catch {
+    // 静默失败，保留 HTML 中的默认选项
+  }
+}
+
+function populateModelSelect(selectId, enabledModels, defaultModel, mode) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  select.innerHTML = '';
+  for (const modelId of enabledModels) {
+    const labels = MODEL_LABELS[modelId];
+    if (!labels) continue;
+    const option = document.createElement('option');
+    option.value = modelId;
+    option.textContent = labels[mode] || labels.img2img;
+    if (modelId === defaultModel) option.selected = true;
+    select.appendChild(option);
+  }
+}
+
 /**
  * 扩图模式
  */

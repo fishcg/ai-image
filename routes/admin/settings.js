@@ -19,6 +19,8 @@ const SETTING_DEFAULTS = {
   monthly_limit: '200',
   session_ttl_days: '30',
   max_upload_mb: '60',
+  default_model: 'gpt-image',
+  enabled_models: 'gpt-image,dashscope,google-nano-banana-pro,jimeng',
 };
 
 async function getSettings({ req, res, pool }) {
@@ -91,9 +93,32 @@ async function getCachedSetting(pool, key, fallback) {
   return Number.isFinite(num) ? num : fallback;
 }
 
+async function getCachedSettingStr(pool, key, fallback) {
+  const now = Date.now();
+  if (!settingsCache.data || now - settingsCache.ts > CACHE_TTL) {
+    await getCachedSetting(pool, key, 0);
+  }
+  const val = settingsCache.data?.[key];
+  return (val !== undefined && val !== null) ? val : fallback;
+}
+
+async function getPublicModelConfig({ req, res, pool }) {
+  try {
+    const defaultModel = await getCachedSettingStr(pool, 'default_model', SETTING_DEFAULTS.default_model);
+    const enabledModels = await getCachedSettingStr(pool, 'enabled_models', SETTING_DEFAULTS.enabled_models);
+    sendJson(res, 200, {
+      defaultModel,
+      enabledModels: enabledModels.split(',').map(s => s.trim()).filter(Boolean),
+    });
+  } catch (err) {
+    sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
+  }
+}
+
 module.exports = {
   getSettings,
   updateSettings,
   getCachedSetting,
+  getPublicModelConfig,
   SETTING_DEFAULTS,
 };

@@ -340,6 +340,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/model-config') {
+    await adminSettingsRoutes.getPublicModelConfig({ req, res, pool });
+    return;
+  }
+
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendText(res, 405, 'Method Not Allowed');
     return;

@@ -41,6 +41,43 @@
             </div>
           </div>
         </div>
+
+        <div class="admin-card">
+          <h2>模型配置</h2>
+          <div class="settings-form">
+            <div class="setting-group">
+              <label for="defaultModel">默认模型</label>
+              <select id="defaultModel" class="search-input">
+                <option value="gpt-image">GPT Image（高质量，支持2K）</option>
+                <option value="dashscope">快速修图/生成</option>
+                <option value="google-nano-banana-pro">精修（Google Nano）</option>
+                <option value="jimeng">即梦4.0（支持4K超清）</option>
+              </select>
+              <div class="hint">用户打开创作页面时默认选中的模型</div>
+            </div>
+            <div class="setting-group">
+              <label>可用模型</label>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: rgba(255,255,255,0.9);">
+                  <input type="checkbox" id="enableGptImage" value="gpt-image" checked /> GPT Image（高质量，支持2K）
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: rgba(255,255,255,0.9);">
+                  <input type="checkbox" id="enableDashscope" value="dashscope" checked /> 快速修图/生成
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: rgba(255,255,255,0.9);">
+                  <input type="checkbox" id="enableNano" value="google-nano-banana-pro" checked /> 精修（Google Nano）
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: rgba(255,255,255,0.9);">
+                  <input type="checkbox" id="enableJimeng" value="jimeng" checked /> 即梦4.0（支持4K超清）
+                </label>
+              </div>
+              <div class="hint">取消勾选的模型将不会在创作页面显示</div>
+            </div>
+            <div>
+              <button id="saveModelBtn" class="btn-primary">保存模型配置</button>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
     <script src="/pages/admin/admin.js"></script>
@@ -54,6 +91,14 @@
           document.getElementById('monthlyLimit').value = s.monthly_limit || 200;
           document.getElementById('sessionTtlDays').value = s.session_ttl_days || 30;
           document.getElementById('maxUploadMb').value = s.max_upload_mb || 60;
+
+          // 模型配置
+          document.getElementById('defaultModel').value = s.default_model || 'gpt-image';
+          const enabled = (s.enabled_models || 'gpt-image,dashscope,google-nano-banana-pro,jimeng').split(',').map(s => s.trim());
+          document.getElementById('enableGptImage').checked = enabled.includes('gpt-image');
+          document.getElementById('enableDashscope').checked = enabled.includes('dashscope');
+          document.getElementById('enableNano').checked = enabled.includes('google-nano-banana-pro');
+          document.getElementById('enableJimeng').checked = enabled.includes('jimeng');
         } catch (e) { console.error(e); showToast('加载设置失败', 'error'); }
       }
 
@@ -71,6 +116,33 @@
           });
           if (!resp.ok) throw new Error();
           showToast('保存成功', 'success');
+        } catch (e) { console.error(e); showToast('保存失败', 'error'); }
+      });
+
+      document.getElementById('saveModelBtn').addEventListener('click', async () => {
+        const checkboxes = ['enableGptImage', 'enableDashscope', 'enableNano', 'enableJimeng'];
+        const enabledModels = checkboxes
+          .map(id => document.getElementById(id))
+          .filter(el => el && el.checked)
+          .map(el => el.value)
+          .join(',');
+
+        if (!enabledModels) { showToast('至少启用一个模型', 'error'); return; }
+
+        const defaultModel = document.getElementById('defaultModel').value;
+        if (!enabledModels.split(',').includes(defaultModel)) {
+          showToast('默认模型必须在可用模型中', 'error');
+          return;
+        }
+
+        try {
+          const resp = await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settings: { default_model: defaultModel, enabled_models: enabledModels } }),
+          });
+          if (!resp.ok) throw new Error();
+          showToast('模型配置已保存', 'success');
         } catch (e) { console.error(e); showToast('保存失败', 'error'); }
       });
 
