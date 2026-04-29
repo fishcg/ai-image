@@ -43,6 +43,136 @@
         <div class="quota-hint">额度每月 1 号自动重置</div>
       </div>
 
+      <!-- API Key 管理卡片 -->
+      <div class="apikey-card">
+        <div class="apikey-header">
+          <h2 class="apikey-title">API Key</h2>
+          <button id="apikeyHelpBtn" class="apikey-btn secondary" type="button">使用说明</button>
+        </div>
+        <div id="apikeyContent">
+          <div id="apikeyEmpty">
+            <p class="apikey-desc">创建 API Key 后，可以通过接口调用图片生成能力，消耗你的额度。</p>
+            <button id="createApiKeyBtn" class="apikey-btn primary" type="button">创建 API Key</button>
+          </div>
+          <div id="apikeyInfo" style="display:none">
+            <div class="apikey-info-row">
+              <code class="apikey-value" id="apikeyPrefix"></code>
+              <button id="copyApiKeyInline" class="apikey-copy-icon" type="button" title="复制">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <span class="apikey-meta" id="apikeyCreated"></span>
+              <span class="apikey-meta" id="apikeyLastUsed"></span>
+              <button id="deleteApiKeyBtn" class="apikey-btn danger" type="button">删除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API Key 创建成功弹窗 -->
+      <div id="apikeyModal" class="modal" hidden>
+        <div class="modalCard" role="dialog" aria-modal="true">
+          <div class="modalHeader">
+            <div class="modalTitle">API Key 已创建</div>
+            <button class="iconBtn" type="button" id="apikeyModalClose" aria-label="关闭">×</button>
+          </div>
+          <div class="modalBody">
+            <p style="color:rgba(251,191,36,0.9);font-size:14px;margin-bottom:12px;">请立即复制保存，此 Key 仅显示一次！</p>
+            <div class="apikey-display">
+              <code id="apikeyFull"></code>
+              <button id="copyApiKeyBtn" class="apikey-btn secondary" type="button">复制</button>
+            </div>
+          </div>
+          <div class="modalFooter">
+            <button class="primary" type="button" id="apikeyModalOk">我已保存</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- API 使用说明弹窗 -->
+      <div id="apikeyHelpModal" class="modal" hidden>
+        <div class="modalCard apikey-help-modal" role="dialog" aria-modal="true">
+          <div class="modalHeader">
+            <div class="modalTitle">API 使用说明</div>
+            <button class="iconBtn" type="button" id="apikeyHelpClose" aria-label="关闭">×</button>
+          </div>
+          <div class="modalBody apikey-help-body">
+            <h3>接口地址</h3>
+            <code class="apikey-code-block">POST /openapi/v1/generate</code>
+
+            <h3>认证方式</h3>
+            <p>在请求头中携带 API Key：</p>
+            <code class="apikey-code-block">Authorization: Bearer ak_xxxxxxxxxxxxxxxx</code>
+
+            <h3>请求参数</h3>
+            <table class="apikey-param-table">
+              <thead><tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>prompt</td><td>string</td><td>是</td><td>提示词</td></tr>
+                <tr><td>mode</td><td>string</td><td>否</td><td>txt2img（文生图）或 img2img（图生图），默认 img2img</td></tr>
+                <tr><td>modelId</td><td>string</td><td>否</td><td>模型：gpt-image / dashscope / jimeng 等</td></tr>
+                <tr><td>n</td><td>number</td><td>否</td><td>生成数量（1-4，取决于模型）</td></tr>
+                <tr><td>hd</td><td>boolean</td><td>否</td><td>超清模式</td></tr>
+                <tr><td>aspectRatio</td><td>string</td><td>否</td><td>比例，如 1:1、16:9、9:16</td></tr>
+                <tr><td>negativePrompt</td><td>string</td><td>否</td><td>负面提示词</td></tr>
+                <tr><td>images</td><td>array</td><td>img2img 时必填</td><td>输入图片，每项为 {name, dataUrl} 对象</td></tr>
+              </tbody>
+            </table>
+
+            <h3>示例 1：文生图</h3>
+            <code class="apikey-code-block">curl -X POST http://your-host/openapi/v1/generate \
+  -H "Authorization: Bearer ak_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "一只橘猫坐在窗台上，阳光洒进来",
+    "mode": "txt2img",
+    "modelId": "gpt-image",
+    "n": 1,
+    "hd": true,
+    "aspectRatio": "16:9"
+  }'</code>
+
+            <h3>示例 2：图生图</h3>
+            <code class="apikey-code-block">curl -X POST http://your-host/openapi/v1/generate \
+  -H "Authorization: Bearer ak_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "转为吉卜力动画风格",
+    "mode": "img2img",
+    "modelId": "gpt-image",
+    "n": 1,
+    "images": [
+      {
+        "name": "photo.jpg",
+        "dataUrl": "data:image/jpeg;base64,/9j/4AAQ..."
+      }
+    ]
+  }'</code>
+            <p class="apikey-help-tip">images 中的 dataUrl 为完整的 Data URL（含 data:image/xxx;base64, 前缀），最多传 3 张图片。</p>
+
+            <h3>响应格式</h3>
+            <code class="apikey-code-block">{
+  "success": true,
+  "images": ["https://...output1.png"],
+  "quota": { "limit": 200, "used": 15, "remaining": 185, "month": "2026-04" }
+}</code>
+
+            <h3>错误码</h3>
+            <table class="apikey-param-table">
+              <thead><tr><th>状态码</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>401</td><td>API Key 无效或缺失</td></tr>
+                <tr><td>403</td><td>账号已被禁用</td></tr>
+                <tr><td>429</td><td>本月额度不足</td></tr>
+                <tr><td>400</td><td>参数错误</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="modalFooter">
+            <button class="primary" type="button" id="apikeyHelpOk">知道了</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Tab 切换 -->
       <div class="profile-tabs">
         <button id="tabHistory" class="tab-btn active" type="button" data-tab="history">历史记录</button>

@@ -91,6 +91,27 @@ async function getAuthUser({ pool, req }) {
   return rows?.[0] || null;
 }
 
+async function getApiKeyUser({ pool, req }) {
+  const auth = String(req.headers.authorization || '');
+  const match = /^Bearer\s+(ak_[a-f0-9]{40})$/i.exec(auth);
+  if (!match) return null;
+
+  const apiKey = match[1];
+  const keyHash = sha256Hex(apiKey);
+  const [rows] = await pool.query(
+    `SELECT u.id, u.username, u.is_disabled, ak.id AS ak_id
+     FROM api_keys ak
+     JOIN users u ON u.id = ak.user_id
+     WHERE ak.api_key_hash = ?
+     LIMIT 1`,
+    [keyHash]
+  );
+  if (!rows?.[0]) return null;
+
+  pool.query('UPDATE api_keys SET last_used_at = NOW() WHERE id = ?', [rows[0].ak_id]).catch(() => {});
+  return { id: rows[0].id, username: rows[0].username, is_disabled: rows[0].is_disabled };
+}
+
 module.exports = {
   normalizeUsername,
   validateUsername,
@@ -100,5 +121,6 @@ module.exports = {
   sha256Hex,
   validateInviteCode,
   getAuthUser,
+  getApiKeyUser,
 };
 

@@ -12,6 +12,8 @@ const aiAssistantRoutes = require('./routes/ai-assistant');
 const promptHistoryRoutes = require('./routes/prompt-history');
 const presetsRoutes = require('./routes/presets');
 const feedbackRoutes = require('./routes/feedback');
+const apikeysRoutes = require('./routes/apikeys');
+const openapiRoutes = require('./routes/openapi');
 const adminAuthRoutes = require('./routes/admin/auth');
 const adminUsersRoutes = require('./routes/admin/users');
 const adminQuotaRoutes = require('./routes/admin/quota');
@@ -129,6 +131,18 @@ const server = http.createServer(async (req, res) => {
     const { readBody } = require('./lib/http');
     const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
     await presetsRoutes.deletePreset({ req, res, pool, body });
+    return;
+  }
+  if (req.method === 'GET' && url.pathname === '/api/apikey') {
+    await apikeysRoutes.getApiKey({ req, res, pool });
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/api/apikey') {
+    await apikeysRoutes.createApiKey({ req, res, pool });
+    return;
+  }
+  if (req.method === 'DELETE' && url.pathname === '/api/apikey') {
+    await apikeysRoutes.deleteApiKey({ req, res, pool });
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/favorites') {
@@ -374,6 +388,29 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/api/model-config') {
     await adminSettingsRoutes.getPublicModelConfig({ req, res, pool });
+    return;
+  }
+
+  // Open API (API Key auth)
+  if (req.method === 'POST' && url.pathname === '/openapi/v1/generate') {
+    req.setTimeout(generateRequestTimeoutMs);
+    res.setTimeout(generateRequestTimeoutMs);
+    await openapiRoutes.generate({
+      req,
+      res,
+      axios,
+      pool,
+      dc,
+      ai,
+      nanoai,
+      jimeng,
+      gptimage,
+      monthlyLimit: await getCachedSetting(pool, 'monthly_limit', MONTHLY_LIMIT),
+      providerTimeoutMsDashScope,
+      providerTimeoutMsNanoAi,
+      providerTimeoutMsJiMeng,
+      providerTimeoutMsGptImage,
+    });
     return;
   }
 

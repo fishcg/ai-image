@@ -93,6 +93,237 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* API Key 卡片 */
+.apikey-card {
+  margin-bottom: 32px;
+  padding: 28px 32px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.apikey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.apikey-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.apikey-desc {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.apikey-info-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.apikey-copy-icon {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.apikey-copy-icon:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.apikey-meta {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.apikey-value {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+code.apikey-value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.apikey-btn {
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.apikey-btn.primary {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+}
+
+.apikey-btn.primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.apikey-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.apikey-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.apikey-btn.danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.apikey-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.apikey-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.apikey-display code {
+  flex: 1;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  color: #10b981;
+  word-break: break-all;
+}
+
+.apikey-usage-hint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+}
+
+.apikey-usage-hint p {
+  margin: 0 0 8px 0;
+}
+
+.apikey-usage-hint code {
+  display: block;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* API 使用说明弹窗 */
+.apikey-help-modal {
+  max-width: 640px;
+  width: 90%;
+}
+
+.apikey-help-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+
+.apikey-help-body h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 20px 0 8px 0;
+}
+
+.apikey-help-body h3:first-child {
+  margin-top: 0;
+}
+
+.apikey-help-body p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 8px 0;
+}
+
+.apikey-code-block {
+  display: block;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.apikey-param-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.apikey-param-table th {
+  text-align: left;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.apikey-param-table td {
+  padding: 7px 10px;
+  color: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.apikey-param-table tr:last-child td {
+  border-bottom: none;
+}
+
+.apikey-help-tip {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 8px 0 0 0;
+  font-style: italic;
+}
+
 .profile-header {
   margin-bottom: 24px;
 }

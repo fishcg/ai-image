@@ -776,11 +776,142 @@
     document.body.appendChild(warningDiv);
   }
 
+  // ========== API Key Management ==========
+  async function loadApiKey() {
+    try {
+      const res = await fetch('/api/apikey');
+      if (!res.ok) return;
+      const data = await res.json();
+      const emptyEl = document.getElementById('apikeyEmpty');
+      const infoEl = document.getElementById('apikeyInfo');
+      if (!data.apiKey) {
+        if (emptyEl) emptyEl.style.display = '';
+        if (infoEl) infoEl.style.display = 'none';
+        return;
+      }
+      if (emptyEl) emptyEl.style.display = 'none';
+      if (infoEl) infoEl.style.display = '';
+      const prefix = document.getElementById('apikeyPrefix');
+      const created = document.getElementById('apikeyCreated');
+      const lastUsed = document.getElementById('apikeyLastUsed');
+      if (prefix) prefix.textContent = data.apiKey.api_key;
+      if (created) created.textContent = '创建于 ' + new Date(data.apiKey.created_at).toLocaleString('zh-CN');
+      if (lastUsed) lastUsed.textContent = data.apiKey.last_used_at ? '最后使用 ' + new Date(data.apiKey.last_used_at).toLocaleString('zh-CN') : '未使用过';
+    } catch (err) {
+      console.error('Failed to load API key:', err);
+    }
+  }
+
+  function initApiKey() {
+    const createBtn = document.getElementById('createApiKeyBtn');
+    const deleteBtn = document.getElementById('deleteApiKeyBtn');
+    const modal = document.getElementById('apikeyModal');
+    const modalClose = document.getElementById('apikeyModalClose');
+    const modalOk = document.getElementById('apikeyModalOk');
+    const copyBtn = document.getElementById('copyApiKeyBtn');
+
+    if (createBtn) {
+      createBtn.addEventListener('click', async () => {
+        createBtn.disabled = true;
+        createBtn.textContent = '创建中...';
+        try {
+          const res = await fetch('/api/apikey', { method: 'POST' });
+          const data = await res.json();
+          if (!res.ok) { alert(data.error || '创建失败'); return; }
+          document.getElementById('apikeyFull').textContent = data.apiKey;
+          if (modal) modal.hidden = false;
+          loadApiKey();
+        } catch (err) {
+          alert('创建失败: ' + err.message);
+        } finally {
+          createBtn.disabled = false;
+          createBtn.textContent = '创建 API Key';
+        }
+      });
+    }
+
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async () => {
+        if (!confirm('确定要删除 API Key 吗？删除后使用该 Key 的所有调用将失效。')) return;
+        deleteBtn.disabled = true;
+        try {
+          const res = await fetch('/api/apikey', { method: 'DELETE' });
+          if (!res.ok) { const d = await res.json(); alert(d.error || '删除失败'); return; }
+          loadApiKey();
+        } catch (err) {
+          alert('删除失败: ' + err.message);
+        } finally {
+          deleteBtn.disabled = false;
+        }
+      });
+    }
+
+    function closeModal() { if (modal) modal.hidden = true; }
+    if (modalClose) modalClose.addEventListener('click', closeModal);
+    if (modalOk) modalOk.addEventListener('click', closeModal);
+    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        const key = document.getElementById('apikeyFull')?.textContent;
+        if (!key) return;
+        navigator.clipboard.writeText(key).then(() => {
+          copyBtn.textContent = '已复制';
+          setTimeout(() => { copyBtn.textContent = '复制'; }, 2000);
+        }).catch(() => {
+          const ta = document.createElement('textarea');
+          ta.value = key;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          copyBtn.textContent = '已复制';
+          setTimeout(() => { copyBtn.textContent = '复制'; }, 2000);
+        });
+      });
+    }
+
+    // 复制 key（info 行内图标）
+    const copyInline = document.getElementById('copyApiKeyInline');
+    if (copyInline) {
+      copyInline.addEventListener('click', () => {
+        const key = document.getElementById('apikeyPrefix')?.textContent;
+        if (!key) return;
+        navigator.clipboard.writeText(key).then(() => {
+          showCopyTip(copyInline);
+        }).catch(() => {});
+      });
+    }
+
+    function showCopyTip(anchor) {
+      const tip = document.createElement('span');
+      tip.textContent = '已复制';
+      tip.style.cssText = 'position:absolute;padding:4px 10px;background:rgba(16,185,129,0.9);color:#fff;font-size:12px;border-radius:4px;white-space:nowrap;pointer-events:none;z-index:100;transform:translateY(-120%);';
+      anchor.style.position = 'relative';
+      anchor.appendChild(tip);
+      setTimeout(() => tip.remove(), 1000);
+    }
+
+    // 使用说明弹窗
+    const helpBtn = document.getElementById('apikeyHelpBtn');
+    const helpModal = document.getElementById('apikeyHelpModal');
+    const helpClose = document.getElementById('apikeyHelpClose');
+    const helpOk = document.getElementById('apikeyHelpOk');
+
+    function closeHelp() { if (helpModal) helpModal.hidden = true; }
+    if (helpBtn) helpBtn.addEventListener('click', () => { if (helpModal) helpModal.hidden = false; });
+    if (helpClose) helpClose.addEventListener('click', closeHelp);
+    if (helpOk) helpOk.addEventListener('click', closeHelp);
+    if (helpModal) helpModal.addEventListener('click', (e) => { if (e.target === helpModal) closeHelp(); });
+  }
+
   // Initialize
   async function init() {
     const isAuthed = await checkAuth();
     if (isAuthed) {
       loadQuota();
+      loadApiKey();
+      initApiKey();
       setupInfiniteScroll();
       loadHistory();
     }

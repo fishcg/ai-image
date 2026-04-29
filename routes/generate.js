@@ -357,4 +357,4 @@ function generateAsyncStatus({ req, res }) {
   sendJson(res, 200, { status: 'done', result: job.result });
 }
 
-module.exports = { generate, generateAsyncStart, generateAsyncStatus };
+module.exports = { generate, generateAsyncStart, generateAsyncStatus, runGenerate, validateRequest };
