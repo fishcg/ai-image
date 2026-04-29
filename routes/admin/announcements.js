@@ -2,12 +2,17 @@ const { sendJson } = require('../../lib/http');
 const { getAdminUser } = require('./auth');
 
 async function requireAdmin({ pool, req, res }) {
-  const admin = await getAdminUser({ pool, req });
-  if (!admin) {
-    sendJson(res, 401, { error: '请先登录管理后台' });
+  try {
+    const admin = await getAdminUser({ pool, req });
+    if (!admin) {
+      sendJson(res, 401, { error: '请先登录管理后台' });
+      return null;
+    }
+    return admin;
+  } catch (err) {
+    sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
     return null;
   }
-  return admin;
 }
 
 async function listAnnouncements({ req, res, pool }) {

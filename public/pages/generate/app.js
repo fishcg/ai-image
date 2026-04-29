@@ -1685,6 +1685,20 @@ async function handleSubmit() {
       finalPrompt = `请**只修改**图中白色画笔涂抹区域，将该区域重绘为：${prompt}。保持其余部分不变。`;
     }
 
+    // 扩图模式处理
+    if (expandModeActive && orderedImages.length > 0) {
+      const expandResult = await expandImageForSubmit(files[0]);
+      if (expandResult) {
+        const baseImgIdx = orderedImages.length >= 2 ? orderedImages.length - 1 : 0;
+        orderedImages[baseImgIdx] = { name: 'expanded.png', dataUrl: expandResult.expandedDataUrl };
+        // 添加蒙版作为第二张图片（如果只有一张图）
+        if (orderedImages.length === 1) {
+          orderedImages.push({ name: 'mask.png', dataUrl: expandResult.maskDataUrl });
+        }
+        finalPrompt = `将图片中的白色空白区域自然延伸补全，保持与原有内容的风格、色调、光影一致。${prompt ? ' ' + prompt : ''}`;
+      }
+    }
+
     const body = { images: orderedImages, prompt: finalPrompt, negativePrompt, n, hd, modelId };
 
     const resp = await fetch('/api/generate?async=1', {
@@ -2008,7 +2022,14 @@ function init() {
     updateFileInfo(selectedFiles);
     setFileError('');
     setStatus('');
+    updateHdSizeHint();
   });
+
+  $('hd')?.addEventListener('change', updateHdSizeHint);
+  $('modelId')?.addEventListener('change', updateHdSizeHint);
+  $('hdText')?.addEventListener('change', updateHdSizeHintText);
+  $('modelIdText')?.addEventListener('change', updateHdSizeHintText);
+  $('aspectRatioText')?.addEventListener('change', updateHdSizeHintText);
 
   $('preview')?.addEventListener('click', (e) => {
     const img = e.target?.closest?.('img');
@@ -2971,6 +2992,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 提示词历史功能
   initPromptHistory();
+
+  // 自定义预设功能
+  initPresets();
+
+  // 扩图模式
+  initExpandMode();
 });
 
 /**
@@ -3132,6 +3159,135 @@ async function deletePromptHistory(event, id, mode) {
 }
 
 /**
+ * 初始化自定义预设功能
+ */
+function initPresets() {
+  // img2img
+  document.getElementById('loadPreset')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePresetDropdown('img2img');
+  });
+  document.getElementById('savePreset')?.addEventListener('click', () => savePreset('img2img'));
+
+  // txt2img
+  document.getElementById('loadPresetText')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePresetDropdown('txt2img');
+  });
+  document.getElementById('savePresetText')?.addEventListener('click', () => savePreset('txt2img'));
+
+  // 点击外部关闭
+  document.addEventListener('click', () => {
+    const d1 = document.getElementById('presetDropdown');
+    const d2 = document.getElementById('presetDropdownText');
+    if (d1) d1.hidden = true;
+    if (d2) d2.hidden = true;
+  });
+}
+
+async function togglePresetDropdown(mode) {
+  const dropdownId = mode === 'txt2img' ? 'presetDropdownText' : 'presetDropdown';
+  const dropdown = document.getElementById(dropdownId);
+  if (!dropdown) return;
+
+  if (!dropdown.hidden) { dropdown.hidden = true; return; }
+
+  dropdown.hidden = false;
+  dropdown.innerHTML = '<div class="prompt-history-loading">加载中...</div>';
+
+  try {
+    const resp = await fetch('/api/presets');
+    if (!resp.ok) throw new Error();
+    const data = await resp.json();
+    const presets = data.presets || [];
+
+    if (presets.length === 0) {
+      dropdown.innerHTML = '<div class="prompt-history-empty">暂无预设，点击"保存预设"创建</div>';
+      return;
+    }
+
+    dropdown.innerHTML = presets.map(p => `
+      <div class="prompt-history-item" data-id="${p.id}">
+        <div class="prompt-history-content">
+          <div class="prompt-history-text" style="font-weight:600;">${escapeHtml(p.name)}</div>
+          <div class="prompt-history-text" style="font-size:13px;opacity:0.8;">${escapeHtml(p.prompt.length > 80 ? p.prompt.slice(0, 80) + '...' : p.prompt)}</div>
+          ${p.negative_prompt ? `<div class="prompt-history-negative">负面: ${escapeHtml(p.negative_prompt)}</div>` : ''}
+        </div>
+        <button class="prompt-history-delete" onclick="deletePreset(event, ${p.id}, '${mode}')">删除</button>
+      </div>
+    `).join('');
+
+    dropdown.querySelectorAll('.prompt-history-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.classList.contains('prompt-history-delete')) return;
+        const id = item.dataset.id;
+        const preset = presets.find(p => p.id == id);
+        if (preset) {
+          applyPreset(preset, mode);
+          dropdown.hidden = true;
+        }
+      });
+    });
+  } catch {
+    dropdown.innerHTML = '<div class="prompt-history-empty">加载失败</div>';
+  }
+}
+
+function applyPreset(preset, mode) {
+  const promptId = mode === 'txt2img' ? 'promptText' : 'prompt';
+  const negId = mode === 'txt2img' ? 'negativePromptText' : 'negativePrompt';
+  const promptEl = document.getElementById(promptId);
+  const negEl = document.getElementById(negId);
+  if (promptEl) promptEl.value = preset.prompt;
+  if (negEl) negEl.value = preset.negative_prompt || '';
+  showToast('已加载预设: ' + preset.name, 'success');
+}
+
+async function savePreset(mode) {
+  const promptId = mode === 'txt2img' ? 'promptText' : 'prompt';
+  const negId = mode === 'txt2img' ? 'negativePromptText' : 'negativePrompt';
+  const prompt = document.getElementById(promptId)?.value?.trim();
+  const negativePrompt = document.getElementById(negId)?.value?.trim() || '';
+
+  if (!prompt) { showToast('Prompt 不能为空', 'error'); return; }
+
+  const name = window.prompt('请输入预设名称：');
+  if (!name || !name.trim()) return;
+
+  try {
+    const resp = await fetch('/api/presets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim(), prompt, negativePrompt }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { showToast(data.error || '保存失败', 'error'); return; }
+    showToast('预设已保存', 'success');
+  } catch {
+    showToast('保存失败', 'error');
+  }
+}
+
+async function deletePreset(event, id, mode) {
+  event.stopPropagation();
+  if (!confirm('确定要删除这个预设吗？')) return;
+
+  try {
+    const resp = await fetch('/api/presets', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (!resp.ok) throw new Error();
+    showToast('已删除', 'success');
+    togglePresetDropdown(mode);
+    setTimeout(() => togglePresetDropdown(mode), 100);
+  } catch {
+    showToast('删除失败', 'error');
+  }
+}
+
+/**
  * HTML 转义
  */
 function escapeHtml(text) {
@@ -3143,6 +3299,209 @@ function escapeHtml(text) {
 /**
  * 显示账号被禁用警告
  */
+/**
+ * 扩图模式
+ */
+let expandModeActive = false;
+
+function initExpandMode() {
+  const toggleBtn = document.getElementById('expandToggle');
+  const panel = document.getElementById('expandPanel');
+  const closeBtn = document.getElementById('expandClose');
+  const allBtn = document.getElementById('expandAll');
+  const pixelsSlider = document.getElementById('expandPixels');
+  const pixelsValue = document.getElementById('expandPixelsValue');
+
+  if (!toggleBtn || !panel) return;
+
+  toggleBtn.addEventListener('click', () => {
+    expandModeActive = !expandModeActive;
+    panel.hidden = !expandModeActive;
+    toggleBtn.textContent = expandModeActive ? '退出扩图模式' : '扩图模式';
+    toggleBtn.classList.toggle('active', expandModeActive);
+    updateExpandPreview();
+  });
+
+  closeBtn?.addEventListener('click', () => {
+    expandModeActive = false;
+    panel.hidden = true;
+    toggleBtn.textContent = '扩图模式';
+    toggleBtn.classList.remove('active');
+  });
+
+  allBtn?.addEventListener('click', () => {
+    ['expandUp', 'expandDown', 'expandLeft', 'expandRight'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = true;
+    });
+    updateExpandPreview();
+  });
+
+  ['expandUp', 'expandDown', 'expandLeft', 'expandRight'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', updateExpandPreview);
+  });
+
+  pixelsSlider?.addEventListener('input', () => {
+    if (pixelsValue) pixelsValue.textContent = pixelsSlider.value;
+    updateExpandPreview();
+  });
+}
+
+function updateExpandPreview() {
+  const hint = document.getElementById('expandPreview');
+  if (!hint || !expandModeActive) return;
+
+  if (!selectedFiles || selectedFiles.length === 0) {
+    hint.textContent = '请先选择图片';
+    return;
+  }
+
+  const px = Number(document.getElementById('expandPixels')?.value || 200);
+  const up = document.getElementById('expandUp')?.checked;
+  const down = document.getElementById('expandDown')?.checked;
+  const left = document.getElementById('expandLeft')?.checked;
+  const right = document.getElementById('expandRight')?.checked;
+
+  if (!up && !down && !left && !right) {
+    hint.textContent = '请选择至少一个扩展方向';
+    return;
+  }
+
+  const file = selectedFiles[0];
+  const img = new Image();
+  img.onload = () => {
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    const newW = w + (left ? px : 0) + (right ? px : 0);
+    const newH = h + (up ? px : 0) + (down ? px : 0);
+    hint.innerHTML = `原图 <strong>${w}x${h}</strong> → 扩展后 <strong>${newW}x${newH}</strong>`;
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function expandImageForSubmit(file) {
+  return new Promise((resolve) => {
+    if (!expandModeActive) { resolve(null); return; }
+
+    const px = Number(document.getElementById('expandPixels')?.value || 200);
+    const up = document.getElementById('expandUp')?.checked;
+    const down = document.getElementById('expandDown')?.checked;
+    const left = document.getElementById('expandLeft')?.checked;
+    const right = document.getElementById('expandRight')?.checked;
+
+    if (!up && !down && !left && !right) { resolve(null); return; }
+
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const newW = w + (left ? px : 0) + (right ? px : 0);
+      const newH = h + (up ? px : 0) + (down ? px : 0);
+      const offsetX = left ? px : 0;
+      const offsetY = up ? px : 0;
+
+      // 创建扩展后的图片（白色填充）
+      const canvas = document.createElement('canvas');
+      canvas.width = newW;
+      canvas.height = newH;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, newW, newH);
+      ctx.drawImage(img, offsetX, offsetY, w, h);
+      const expandedDataUrl = canvas.toDataURL('image/png');
+
+      // 创建蒙版（白色=需要修改，黑色=保持不变）
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = newW;
+      maskCanvas.height = newH;
+      const mctx = maskCanvas.getContext('2d');
+      mctx.fillStyle = '#ffffff';
+      mctx.fillRect(0, 0, newW, newH);
+      mctx.fillStyle = '#000000';
+      mctx.fillRect(offsetX, offsetY, w, h);
+      const maskDataUrl = maskCanvas.toDataURL('image/png');
+
+      URL.revokeObjectURL(img.src);
+      resolve({ expandedDataUrl, maskDataUrl, width: newW, height: newH });
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/**
+ * 更新 img2img HD 尺寸提示
+ */
+function updateHdSizeHint() {
+  const hint = document.getElementById('hdSizeHint');
+  if (!hint) return;
+
+  const hd = document.getElementById('hd')?.checked;
+  const modelId = document.getElementById('modelId')?.value || 'dashscope';
+
+  if (!selectedFiles || selectedFiles.length === 0) {
+    hint.textContent = hd
+      ? '超清模式：输出最长边将提升到 2048px'
+      : '勾选后会按输入图片比例，将输出尺寸最长边提升到 2048px。';
+    return;
+  }
+
+  const file = selectedFiles[0];
+  const img = new Image();
+  img.onload = () => {
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    const maxEdge = hd ? 2048 : Math.max(w, h);
+    const scale = Math.min(maxEdge / Math.max(w, h), 1);
+    const outW = hd ? Math.round(w * (maxEdge / Math.max(w, h))) : w;
+    const outH = hd ? Math.round(h * (maxEdge / Math.max(w, h))) : h;
+    const roundTo64 = (v) => Math.round(v / 64) * 64;
+
+    if (hd) {
+      hint.innerHTML = `超清模式：<strong>${w}x${h}</strong> → <strong>${roundTo64(outW)}x${roundTo64(outH)}</strong>`;
+    } else {
+      hint.innerHTML = `当前输入：<strong>${w}x${h}</strong>，勾选超清可提升到 <strong>${roundTo64(Math.round(w * (2048 / Math.max(w, h))))}x${roundTo64(Math.round(h * (2048 / Math.max(w, h))))}</strong>`;
+    }
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+/**
+ * 更新 txt2img HD 尺寸提示
+ */
+function updateHdSizeHintText() {
+  const hint = document.getElementById('hdSizeHintText');
+  if (!hint) return;
+
+  const hd = document.getElementById('hdText')?.checked;
+  const ratio = document.getElementById('aspectRatioText')?.value || '1:1';
+
+  const baseSizes = {
+    '1:1':  [1280, 1280],
+    '4:3':  [1280, 960],
+    '3:4':  [960, 1280],
+    '16:9': [1280, 720],
+    '9:16': [720, 1280],
+  };
+  const hdSizes = {
+    '1:1':  [2048, 2048],
+    '4:3':  [2048, 1536],
+    '3:4':  [1536, 2048],
+    '16:9': [2048, 1152],
+    '9:16': [1152, 2048],
+  };
+
+  const base = baseSizes[ratio] || baseSizes['1:1'];
+  const hdSize = hdSizes[ratio] || hdSizes['1:1'];
+
+  if (hd) {
+    hint.innerHTML = `超清模式：输出 <strong>${hdSize[0]}x${hdSize[1]}</strong>`;
+  } else {
+    hint.innerHTML = `输出 <strong>${base[0]}x${base[1]}</strong>，勾选超清可提升到 <strong>${hdSize[0]}x${hdSize[1]}</strong>`;
+  }
+}
+
 /**
  * 切换全屏模式
  */

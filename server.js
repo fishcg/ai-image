@@ -10,6 +10,7 @@ const favoritesRoutes = require('./routes/favorites');
 const galleryRoutes = require('./routes/gallery');
 const aiAssistantRoutes = require('./routes/ai-assistant');
 const promptHistoryRoutes = require('./routes/prompt-history');
+const presetsRoutes = require('./routes/presets');
 const adminAuthRoutes = require('./routes/admin/auth');
 const adminUsersRoutes = require('./routes/admin/users');
 const adminQuotaRoutes = require('./routes/admin/quota');
@@ -53,6 +54,7 @@ const providerTimeoutMsGptImage = Number(process.env.GPTIMAGE_TIMEOUT || gptimag
 const generateRequestTimeoutMs = Number(process.env.GENERATE_REQUEST_TIMEOUT || 5 * 60 * 1000);
 
 const server = http.createServer(async (req, res) => {
+  try {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
   if (req.method === 'POST' && url.pathname === '/api/register') {
@@ -109,6 +111,22 @@ const server = http.createServer(async (req, res) => {
     const { readBody } = require('./lib/http');
     const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
     await promptHistoryRoutes.deletePromptHistory({ req, res, pool, body });
+    return;
+  }
+  if (req.method === 'GET' && url.pathname === '/api/presets') {
+    await presetsRoutes.getPresets({ req, res, pool });
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/api/presets') {
+    const { readBody } = require('./lib/http');
+    const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+    await presetsRoutes.createPreset({ req, res, pool, body });
+    return;
+  }
+  if (req.method === 'DELETE' && url.pathname === '/api/presets') {
+    const { readBody } = require('./lib/http');
+    const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+    await presetsRoutes.deletePreset({ req, res, pool, body });
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/favorites') {
@@ -328,6 +346,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   serveStatic({ req, res, publicDir });
+  } catch (err) {
+    console.error('Unhandled request error:', err);
+    if (!res.headersSent) {
+      try { sendText(res, 500, 'Internal Server Error'); } catch {}
+    }
+  }
 });
 
 server.requestTimeout = generateRequestTimeoutMs;

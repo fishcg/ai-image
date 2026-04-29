@@ -144,6 +144,35 @@
         </div>
 
         <div id="preview" class="preview"></div>
+
+        <div id="expandPanel" class="row" hidden>
+          <div class="expand-panel">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <label class="label" style="margin: 0;">扩图设置</label>
+              <button id="expandClose" class="secondary" type="button" style="padding: 4px 12px; font-size: 13px;">关闭扩图</button>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <div class="muted" style="margin-bottom: 6px;">扩展方向</div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <label class="check"><input type="checkbox" id="expandUp" /><span>上</span></label>
+                <label class="check"><input type="checkbox" id="expandDown" /><span>下</span></label>
+                <label class="check"><input type="checkbox" id="expandLeft" /><span>左</span></label>
+                <label class="check"><input type="checkbox" id="expandRight" /><span>右</span></label>
+                <button id="expandAll" class="secondary" type="button" style="padding: 4px 12px; font-size: 13px;">全方向</button>
+              </div>
+            </div>
+            <div style="margin-bottom: 12px;">
+              <div class="muted" style="margin-bottom: 6px;">扩展像素 <span id="expandPixelsValue" class="badge">200</span></div>
+              <input id="expandPixels" type="range" min="50" max="500" value="200" step="10" />
+            </div>
+            <div id="expandPreview" class="hint"></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 12px;" data-auth="required">
+          <button id="expandToggle" class="secondary" type="button" style="width: 100%;">扩图模式</button>
+        </div>
+
         <div id="baseIndexWrap" class="row baseIndex" hidden>
           <div class="baseIndexInner">
             <div class="muted">底图（被修改的那张）</div>
@@ -186,10 +215,21 @@
             </button>
             <div style="position: relative; flex: 1;">
               <button id="promptHistory" class="secondary" type="button" style="width: 100%;" title="查看提示词历史">
-                📝 历史
+                📝 历史记录
               </button>
               <div id="promptHistoryDropdown" class="prompt-history-dropdown" hidden></div>
             </div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <div style="position: relative; flex: 1;">
+              <button id="loadPreset" class="secondary" type="button" style="width: 100%;" title="加载我的预设">
+                📦 我的预设
+              </button>
+              <div id="presetDropdown" class="prompt-history-dropdown" hidden></div>
+            </div>
+            <button id="savePreset" class="secondary" type="button" style="flex: 1;" title="将当前 Prompt 保存为预设">
+              保存预设
+            </button>
           </div>
           <textarea id="prompt" rows="5" placeholder="描述你希望生成的效果…"></textarea>
           <div style="margin-top: 12px;">
@@ -358,7 +398,7 @@
             <input id="hd" type="checkbox" />
             <span>超清</span>
           </label>
-          <div class="hint">勾选后会按输入图片比例，将输出尺寸最长边提升到 2048px。</div>
+          <div id="hdSizeHint" class="hint">勾选后会按输入图片比例，将输出尺寸最长边提升到 2048px。</div>
         </div>
 
         <div class="row actions">
@@ -415,10 +455,21 @@
               </button>
               <div style="position: relative; flex: 1;">
                 <button id="promptHistoryText" class="secondary" type="button" style="width: 100%;" title="查看提示词历史">
-                  📝 历史
+                  📝 历史记录
                 </button>
                 <div id="promptHistoryDropdownText" class="prompt-history-dropdown" hidden></div>
               </div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <div style="position: relative; flex: 1;">
+                <button id="loadPresetText" class="secondary" type="button" style="width: 100%;" title="加载我的预设">
+                  📦 我的预设
+                </button>
+                <div id="presetDropdownText" class="prompt-history-dropdown" hidden></div>
+              </div>
+              <button id="savePresetText" class="secondary" type="button" style="flex: 1;" title="将当前 Prompt 保存为预设">
+                💾 保存预设
+              </button>
             </div>
             <textarea id="promptText" rows="5" placeholder="描述你希望生成的画面…"></textarea>
             <div style="margin-top: 12px;">
@@ -446,7 +497,7 @@
               <input id="hdText" type="checkbox" />
               <span>超清</span>
             </label>
-            <div class="hint">勾选后会提升输出分辨率（不同模型表现略有差异）。</div>
+            <div id="hdSizeHintText" class="hint">勾选后会提升输出分辨率（不同模型表现略有差异）。</div>
           </div>
 
           <div class="row actions">

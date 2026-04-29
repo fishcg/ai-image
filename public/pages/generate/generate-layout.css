@@ -145,6 +145,14 @@
   }
 }
 
+/* 扩图面板样式 */
+.expand-panel {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
 /* 提示词历史下拉框样式 */
 .prompt-history-dropdown {
   position: absolute;
