@@ -210,6 +210,10 @@ const server = http.createServer(async (req, res) => {
       await adminAuthRoutes.me({ req, res, pool });
       return;
     }
+    if (req.method === 'POST' && url.pathname === '/api/admin/change-password') {
+      await adminAuthRoutes.changePassword({ req, res, pool });
+      return;
+    }
 
     // Admin users
     if (req.method === 'GET' && url.pathname === '/api/admin/users') {

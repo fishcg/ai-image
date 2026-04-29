@@ -121,9 +121,66 @@ async function me({ req, res, pool }) {
   }
 }
 
+async function changePassword({ req, res, pool }) {
+  let admin;
+  try {
+    admin = await getAdminUser({ pool, req });
+  } catch (err) {
+    sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
+    return;
+  }
+  if (!admin) {
+    sendJson(res, 401, { error: '未登录' });
+    return;
+  }
+
+  let body;
+  try {
+    const { readBody } = require('../../lib/http');
+    body = await readBody(req, { maxBytes: 1024 * 1024 });
+    body = JSON.parse(body.toString('utf8'));
+  } catch {
+    sendJson(res, 400, { error: 'Invalid request body' });
+    return;
+  }
+
+  const oldPassword = String(body?.oldPassword || '');
+  const newPassword = String(body?.newPassword || '');
+
+  if (!oldPassword || !newPassword) {
+    sendJson(res, 400, { error: '旧密码和新密码不能为空' });
+    return;
+  }
+  if (newPassword.length < 6) {
+    sendJson(res, 400, { error: '新密码长度至少 6 位' });
+    return;
+  }
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT password_hash FROM admin_users WHERE id = ? LIMIT 1',
+      [admin.id]
+    );
+    if (rows.length === 0 || rows[0].password_hash !== hashPassword(oldPassword)) {
+      sendJson(res, 400, { error: '旧密码错误' });
+      return;
+    }
+
+    await pool.query(
+      'UPDATE admin_users SET password_hash = ? WHERE id = ?',
+      [hashPassword(newPassword), admin.id]
+    );
+
+    sendJson(res, 200, { success: true });
+  } catch (err) {
+    sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
+  }
+}
+
 module.exports = {
   login,
   logout,
   me,
+  changePassword,
   getAdminUser,
 };
