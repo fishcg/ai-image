@@ -389,6 +389,6 @@ function renderTopUsersChart(data) {
 }
 
 // 初始化
-AdminAuth.init();
+AdminLayout.init({ activePage: 'dashboard' });
 loadStats();
 loadChartData();

@@ -178,6 +178,6 @@ document.getElementById('imageModal').addEventListener('click', () => {
 });
 
 // 初始化
-AdminAuth.init();
+AdminLayout.init({ activePage: 'users' });
 loadUserInfo();
 loadGenerations();

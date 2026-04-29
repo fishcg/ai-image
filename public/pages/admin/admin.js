@@ -1,4 +1,43 @@
 // 管理后台公共 JS
+
+const NAV_ITEMS = [
+  { key: 'dashboard', href: '/pages/admin/dashboard.html', icon: '📊', label: '仪表盘' },
+  { key: 'users',     href: '/pages/admin/users.html',     icon: '👥', label: '用户管理' },
+  { key: 'quota',     href: '/pages/admin/quota.html',     icon: '💰', label: '额度管理' },
+  { key: 'announcements', href: '/pages/admin/announcements.html', icon: '📢', label: '公告管理' },
+  { key: 'settings',  href: '/pages/admin/settings.html',  icon: '⚙️', label: '系统设置' },
+  { key: 'reg-codes', href: '/pages/admin/reg-codes.html', icon: '🔑', label: '注册码管理' },
+];
+
+const AdminLayout = {
+  renderSidebar(activePage) {
+    const navLinks = NAV_ITEMS.map(item =>
+      `<a href="${item.href}" class="admin-nav-item${item.key === activePage ? ' active' : ''}"><span>${item.icon}</span> ${item.label}</a>`
+    ).join('\n          ');
+
+    return `
+      <aside class="admin-sidebar">
+        <div class="admin-logo">管理后台</div>
+        <nav class="admin-nav">
+          ${navLinks}
+        </nav>
+        <div class="admin-user">
+          <div id="adminUsername">加载中...</div>
+          <button id="logoutBtn" class="btn-logout">退出登录</button>
+        </div>
+      </aside>
+    `;
+  },
+
+  init({ activePage = '' } = {}) {
+    const container = document.getElementById('admin-sidebar-container');
+    if (container) {
+      container.outerHTML = this.renderSidebar(activePage);
+    }
+    AdminAuth.init();
+  },
+};
+
 const AdminAuth = {
   async init() {
     await this.checkAuth();

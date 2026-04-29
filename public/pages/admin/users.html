@@ -9,34 +9,7 @@
   </head>
   <body>
     <div class="admin-layout">
-      <!-- 侧边栏 -->
-      <aside class="admin-sidebar">
-        <div class="admin-logo">管理后台</div>
-        <nav class="admin-nav">
-          <a href="/pages/admin/dashboard.html" class="admin-nav-item">
-            <span>📊</span> 仪表盘
-          </a>
-          <a href="/pages/admin/users.html" class="admin-nav-item active">
-            <span>👥</span> 用户管理
-          </a>
-          <a href="/pages/admin/quota.html" class="admin-nav-item">
-            <span>💰</span> 额度管理
-          </a>
-          <a href="/pages/admin/announcements.html" class="admin-nav-item">
-            <span>📢</span> 公告管理
-          </a>
-          <a href="/pages/admin/settings.html" class="admin-nav-item">
-            <span>⚙️</span> 系统设置
-          </a>
-          <a href="/pages/admin/reg-codes.html" class="admin-nav-item">
-            <span>🔑</span> 注册码管理
-          </a>
-        </nav>
-        <div class="admin-user">
-          <div id="adminUsername">加载中...</div>
-          <button id="logoutBtn" class="btn-logout">退出登录</button>
-        </div>
-      </aside>
+      <div id="admin-sidebar-container"></div>
 
       <!-- 主内容区 -->
       <main class="admin-main">
@@ -259,7 +232,7 @@
         }
       });
 
-      AdminAuth.init();
+      AdminLayout.init({ activePage: 'users' });
       loadUsers();
     </script>
   </body>
