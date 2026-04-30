@@ -413,6 +413,10 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
+  if (req.method === 'POST' && url.pathname === '/openapi/v1/understand') {
+    await openapiRoutes.understand({ req, res, pool, ai });
+    return;
+  }
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendText(res, 405, 'Method Not Allowed');

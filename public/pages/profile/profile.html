@@ -166,6 +166,54 @@
                 <tr><td>400</td><td>参数错误</td></tr>
               </tbody>
             </table>
+
+            <hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:24px 0" />
+
+            <h3>图片理解接口</h3>
+            <code class="apikey-code-block">POST /openapi/v1/understand</code>
+            <p>分析图片内容，支持风格提取和场景识别两种能力。不消耗生图额度。</p>
+
+            <h3>请求参数</h3>
+            <table class="apikey-param-table">
+              <thead><tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>action</td><td>string</td><td>是</td><td>extract-style（风格提取）或 recognize-scene（场景识别）</td></tr>
+                <tr><td>imageUrl</td><td>string</td><td>是</td><td>图片 URL（需可公开访问）</td></tr>
+              </tbody>
+            </table>
+
+            <h3>示例 3：风格提取</h3>
+            <code class="apikey-code-block">curl -X POST http://your-host/openapi/v1/understand \
+  -H "Authorization: Bearer ak_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "extract-style",
+    "imageUrl": "https://example.com/photo.jpg"
+  }'</code>
+            <p class="apikey-help-tip">返回风格描述、关键词和建议 prompt，可直接用于生图接口。</p>
+            <code class="apikey-code-block">{
+  "success": true,
+  "action": "extract-style",
+  "styleDescription": "日系清新插画风格，柔和暖色调...",
+  "keywords": ["日系", "插画", "暖色调", "柔光"],
+  "suggestedPrompt": "日系插画风格，温暖柔和色调..."
+}</code>
+
+            <h3>示例 4：场景识别</h3>
+            <code class="apikey-code-block">curl -X POST http://your-host/openapi/v1/understand \
+  -H "Authorization: Bearer ak_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "recognize-scene",
+    "imageUrl": "https://example.com/photo.jpg"
+  }'</code>
+            <code class="apikey-code-block">{
+  "success": true,
+  "action": "recognize-scene",
+  "scene": "室内咖啡厅",
+  "objects": ["咖啡杯", "书本", "窗户"],
+  "description": "温馨的咖啡厅一角，桌上放着..."
+}</code>
           </div>
           <div class="modalFooter">
             <button class="primary" type="button" id="apikeyHelpOk">知道了</button>
