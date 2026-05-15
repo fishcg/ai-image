@@ -21,6 +21,7 @@ const adminSettingsRoutes = require('./routes/admin/settings');
 const adminAnnouncementsRoutes = require('./routes/admin/announcements');
 const adminRegCodesRoutes = require('./routes/admin/reg-codes');
 const adminFeedbackRoutes = require('./routes/admin/feedback');
+const adminImagesRoutes = require('./routes/admin/images');
 const { getCachedSetting } = adminSettingsRoutes;
 const { http: httpConfig, dc, ai, nanoai, jimeng, gptimage, mysql: mysqlConfig, auth: authConfig } = require('./config');
 
@@ -368,6 +369,24 @@ const server = http.createServer(async (req, res) => {
       const { readBody } = require('./lib/http');
       const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
       await adminFeedbackRoutes.deleteFeedback({ req, res, pool, body });
+      return;
+    }
+
+    // Admin images
+    if (req.method === 'GET' && url.pathname === '/api/admin/images') {
+      await adminImagesRoutes.listImages({ req, res, pool });
+      return;
+    }
+    if (req.method === 'DELETE' && url.pathname === '/api/admin/images') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminImagesRoutes.deleteImage({ req, res, pool, body });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/admin/images/share') {
+      const { readBody } = require('./lib/http');
+      const body = await readBody(req, { maxBytes: 32 * 1024 }).then((b) => JSON.parse(b.toString('utf8'))).catch(() => ({}));
+      await adminImagesRoutes.shareToHome({ req, res, pool, body });
       return;
     }
   }

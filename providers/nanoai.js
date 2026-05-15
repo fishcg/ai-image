@@ -92,7 +92,7 @@ async function generate({ axios, nanoai, env, prompt, negativePrompt, n, hd, asp
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}` // Bearer 认证
     },
-    timeout: 300000// timeoutMs,
+    timeout: timeoutMs,
   };
 
   try {

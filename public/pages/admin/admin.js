@@ -3,6 +3,7 @@
 const NAV_ITEMS = [
   { key: 'dashboard', href: '/pages/admin/dashboard.html', icon: '📊', label: '仪表盘' },
   { key: 'users',     href: '/pages/admin/users.html',     icon: '👥', label: '用户管理' },
+  { key: 'images',    href: '/pages/admin/images.html',    icon: '🖼️', label: '图片管理' },
   { key: 'quota',     href: '/pages/admin/quota.html',     icon: '💰', label: '额度管理' },
   { key: 'announcements', href: '/pages/admin/announcements.html', icon: '📢', label: '公告管理' },
   { key: 'feedback',  href: '/pages/admin/feedback.html',  icon: '💬', label: '意见反馈' },
