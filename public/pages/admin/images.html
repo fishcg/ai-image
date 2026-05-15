@@ -186,7 +186,7 @@
 
       async function loadImages() {
         try {
-          const resp = await fetch(`/api/admin/images?page=${currentPage}&limit=20`);
+          const resp = await fetch(`/api/admin/images?page=${currentPage}&limit=24`);
           if (!resp.ok) {
             if (resp.status === 401) { window.location.href = '/pages/admin/login.html'; return; }
             throw new Error();

@@ -22,7 +22,7 @@ async function listImages({ req, res, pool }) {
 
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
-  const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit')) || 20));
+  const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit')) || 24));
   const offset = (page - 1) * limit;
 
   try {
@@ -39,9 +39,15 @@ async function listImages({ req, res, pool }) {
 
     const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM generation_history');
 
+    const parseUrls = (field) => {
+      if (!field) return [];
+      if (Array.isArray(field)) return field;
+      if (typeof field === 'string') { try { return JSON.parse(field); } catch {} }
+      return [];
+    };
+
     const images = rows.map((row) => {
-      let outputUrls = [];
-      try { outputUrls = JSON.parse(row.output_image_urls) || []; } catch {}
+      const outputUrls = parseUrls(row.output_image_urls);
       return {
         id: row.id,
         userId: row.user_id,
