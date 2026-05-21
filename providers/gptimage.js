@@ -50,6 +50,32 @@ function extractUrls(data) {
   return { outputImageUrls: urls, raw: data };
 }
 
+async function fallbackGenerate({ axios, gptimage, prompt, ratio, quality, timeout }) {
+  const fb = gptimage?.fallback;
+  if (!fb || !fb.apiUrl || !fb.apiKey) {
+    return null;
+  }
+
+  const body = {
+    prompt,
+    aspect_ratio: ratio,
+    quality: quality || 'auto',
+    resolution: '2K',
+  };
+
+  const response = await axios.post(fb.apiUrl, body, {
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${fb.apiKey}`,
+    },
+    timeout: fb.timeout || timeout || 300000,
+    maxContentLength: 100 * 1024 * 1024,
+    maxBodyLength: 100 * 1024 * 1024,
+  });
+
+  return extractUrls(response.data);
+}
+
 async function generate({ axios, gptimage, env, mode, prompt, negativePrompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
   const apiKey = env.GPTIMAGE_API_KEY || gptimage?.apiKey;
   if (!apiKey) {
@@ -121,13 +147,36 @@ async function generate({ axios, gptimage, env, mode, prompt, negativePrompt, n,
     return extractUrls(response.data);
 
   } catch (err) {
-    if (err instanceof ProviderError) throw err;
+    if (err instanceof ProviderError) {
+      // 主渠道失败，尝试 fallback（仅 txt2img 模式支持）
+      if (!isEdit) {
+        try {
+          console.log(`[gpt-image] 主渠道失败(${err.message})，尝试 fallback...`);
+          const fbResult = await fallbackGenerate({ axios, gptimage, prompt: finalPrompt, ratio, quality: hd ? 'high' : 'auto', timeout });
+          if (fbResult) return fbResult;
+        } catch (fbErr) {
+          console.log(`[gpt-image] fallback 也失败: ${fbErr.message}`);
+        }
+      }
+      throw err;
+    }
     const status = err?.response?.status || 502;
-    throw new ProviderError(`Request Failed: ${err.message}`, {
+    const primaryErr = new ProviderError(`Request Failed: ${err.message}`, {
       statusCode: status,
       payload: { error: err.message, details: err?.response?.data },
       cause: err,
     });
+    // 主渠道失败，尝试 fallback（仅 txt2img 模式支持）
+    if (!isEdit) {
+      try {
+        console.log(`[gpt-image] 主渠道失败(${err.message})，尝试 fallback...`);
+        const fbResult = await fallbackGenerate({ axios, gptimage, prompt: finalPrompt, ratio, quality: hd ? 'high' : 'auto', timeout });
+        if (fbResult) return fbResult;
+      } catch (fbErr) {
+        console.log(`[gpt-image] fallback 也失败: ${fbErr.message}`);
+      }
+    }
+    throw primaryErr;
   }
 }
 
