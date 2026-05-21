@@ -56,6 +56,14 @@ async function fallbackGenerate({ axios, gptimage, prompt, ratio, quality, timeo
     return null;
   }
 
+  const baseUrl = fb.apiUrl.replace(/\/gpt-image-2$/, '');
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${fb.apiKey}`,
+  };
+  const reqTimeout = fb.timeout || timeout || 300000;
+
+  // 1. 提交异步任务
   const body = {
     prompt,
     aspect_ratio: ratio,
@@ -63,17 +71,42 @@ async function fallbackGenerate({ axios, gptimage, prompt, ratio, quality, timeo
     resolution: '2K',
   };
 
-  const response = await axios.post(fb.apiUrl, body, {
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${fb.apiKey}`,
-    },
-    timeout: fb.timeout || timeout || 300000,
-    maxContentLength: 100 * 1024 * 1024,
-    maxBodyLength: 100 * 1024 * 1024,
+  const submitRes = await axios.post(`${baseUrl}/gpt-image-2`, body, {
+    headers,
+    timeout: reqTimeout,
   });
 
-  return extractUrls(response.data);
+  const taskId = submitRes.data?.data?.task_id || submitRes.data?.task_id;
+  if (!taskId) {
+    throw new ProviderError('Fallback: no task_id returned', { statusCode: 502, payload: { raw: submitRes.data } });
+  }
+
+  // 2. 轮询任务结果
+  const pollInterval = 3000;
+  const maxPolls = Math.floor(reqTimeout / pollInterval);
+  for (let i = 0; i < maxPolls; i++) {
+    await new Promise(r => setTimeout(r, pollInterval));
+
+    const pollRes = await axios.get(`${baseUrl}/gpt-image/task`, {
+      headers,
+      params: { task_id: taskId },
+      timeout: 30000,
+    });
+
+    const task = pollRes.data?.data || pollRes.data;
+    if (task.status === 'completed') {
+      const urls = task.result?.images || [];
+      if (urls.length === 0) {
+        throw new ProviderError('Fallback: no images in result', { statusCode: 500, payload: { raw: pollRes.data } });
+      }
+      return { outputImageUrls: urls, raw: pollRes.data };
+    }
+    if (task.status === 'failed') {
+      throw new ProviderError(`Fallback task failed: ${task.error_msg || 'unknown'}`, { statusCode: 502, payload: { raw: pollRes.data } });
+    }
+  }
+
+  throw new ProviderError('Fallback: task polling timeout', { statusCode: 504, payload: { task_id: taskId } });
 }
 
 async function generate({ axios, gptimage, env, mode, prompt, negativePrompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
