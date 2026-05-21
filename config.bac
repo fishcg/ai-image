@@ -62,6 +62,11 @@ const gptimage = {
   apiKey: 'sk-test',
   model: 'gpt-image-2',
   timeout: 300000,
+  fallback: {
+    apiUrl: 'https://open.mxapi.org/api/v2/gpt-image-2',
+    apiKey: 'YOUR_FALLBACK_API_KEY',
+    timeout: 300000,
+  },
 };
 
 module.exports = { http, dc, ai, aliyun, mysql, auth, nanoai, gptimage };
