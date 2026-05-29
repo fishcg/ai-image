@@ -7,6 +7,22 @@ let hasMore = true;
 let currentOffset = 0;
 const LIMIT = 20;
 
+// 图片懒加载 observer：图片进入视口附近(300px)再请求
+const imageObserver = 'IntersectionObserver' in window
+  ? new IntersectionObserver((entries, obs) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const img = entry.target;
+        const src = img.dataset.src;
+        if (src) {
+          img.src = src;
+          img.removeAttribute('data-src');
+        }
+        obs.unobserve(img);
+      });
+    }, { rootMargin: '300px 0px', threshold: 0.01 })
+  : null;
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
   await checkAuth();
@@ -188,9 +204,13 @@ function createGalleryCard(item) {
   card.className = 'gallery-item';
 
   const userInitial = (item.username || '管理员').charAt(0).toUpperCase();
+  const safeUrl = escapeHtml(item.imageUrl);
+  const safeAlt = escapeHtml(item.prompt || '图片');
 
   card.innerHTML = `
-    <img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.prompt || '图片')}" loading="lazy" />
+    <div class="gallery-item-imgwrap">
+      <img data-src="${safeUrl}" alt="${safeAlt}" loading="lazy" decoding="async" />
+    </div>
     <div class="gallery-item-info">
       <div class="item-user">
         <div class="item-avatar">${userInitial}</div>
@@ -206,6 +226,14 @@ function createGalleryCard(item) {
       </div>
     </div>
   `;
+
+  // 懒加载图片
+  const img = card.querySelector('img');
+  if (imageObserver) {
+    imageObserver.observe(img);
+  } else {
+    img.src = item.imageUrl;
+  }
 
   // 点击打开详情
   card.addEventListener('click', () => {

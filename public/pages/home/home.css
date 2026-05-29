@@ -376,6 +376,26 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+.gallery-item-imgwrap {
+  position: relative;
+  width: 100%;
+  min-height: 320px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.06)
+  );
+}
+
+.gallery-item-imgwrap img[data-src] {
+  opacity: 0;
+}
+
+.gallery-item-imgwrap img {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
 .gallery-item-info {
   padding: 16px;
 }
