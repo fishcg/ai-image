@@ -11,7 +11,7 @@ function roundDownToMultiple(n, multiple) {
   return Math.max(m, Math.floor(n / m) * m);
 }
 
-function buildDashScopeSize(dim, { maxSide = 2048, multiple = 64, forceMaxSide = false } = {}) {
+function buildDashScopeSize(dim, { maxSide = 2048, minSide = 512, multiple = 64, forceMaxSide = false } = {}) {
   if (!dim?.width || !dim?.height) return null;
   const w0 = Number(dim.width);
   const h0 = Number(dim.height);
@@ -34,8 +34,8 @@ function buildDashScopeSize(dim, { maxSide = 2048, multiple = 64, forceMaxSide =
     h = Math.max(1, Math.round(h0 * scale));
   }
 
-  w = roundDownToMultiple(clampInt(w, 64, maxSide), multiple);
-  h = roundDownToMultiple(clampInt(h, 64, maxSide), multiple);
+  w = roundDownToMultiple(clampInt(w, minSide, maxSide), multiple);
+  h = roundDownToMultiple(clampInt(h, minSide, maxSide), multiple);
 
   if (Math.max(w, h) > maxSide) {
     if (w >= h) w = roundDownToMultiple(maxSide, multiple);
@@ -83,16 +83,16 @@ function sizeFromAspectRatioEdit(aspectRatio, hd) {
   return `${w}*${hh}`;
 }
 
-function sizeForWanT2i(aspectRatio) {
+function sizeForQwenT2i(aspectRatio) {
   const r = normalizeAspectRatio(aspectRatio) || '1:1';
   const map = {
-    '1:1': '1280*1280',
-    '3:4': '1104*1472',
-    '4:3': '1472*1104',
-    '9:16': '960*1696',
-    '16:9': '1696*960',
+    '1:1': '1328*1328',
+    '3:4': '1140*1472',
+    '4:3': '1472*1140',
+    '9:16': '928*1664',
+    '16:9': '1664*928',
   };
-  return map[r] || '1280*1280';
+  return map[r] || '1328*1328';
 }
 
 async function generate({ axios, ai, env, mode, prompt, negativePrompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
@@ -100,15 +100,15 @@ async function generate({ axios, ai, env, mode, prompt, negativePrompt, n, hd, a
   const isTxt2Img = String(mode || 'img2img') === 'txt2img';
   const apiUrl = (isTxt2Img ? (env.DASHSCOPE_T2I_URL || ai?.T2I_URL) : null) || env.DASHSCOPE_URL || ai?.URL;
   const model = isTxt2Img
-    ? (env.DASHSCOPE_T2I_MODEL || ai?.T2I_MODEL || 'wan2.6-t2i')
-    : (env.DASHSCOPE_MODEL || ai?.MODEL || 'qwen-image-edit-plus');
+    ? (env.DASHSCOPE_T2I_MODEL || ai?.T2I_MODEL || 'qwen-image-3.0-pro')
+    : (env.DASHSCOPE_MODEL || ai?.MODEL || 'qwen-image-3.0-pro');
 
   if (!apiKey) {
     throw new ProviderError('Missing DASHSCOPE_API_KEY', { statusCode: 500, payload: { error: 'Missing DASHSCOPE_API_KEY' } });
   }
 
   const size = isTxt2Img
-    ? sizeForWanT2i(aspectRatio)
+    ? sizeForQwenT2i(aspectRatio)
     : (baseDim
         ? buildDashScopeSize(baseDim, { maxSide: 2048, multiple: 64, forceMaxSide: hd })
         : (sizeFromAspectRatioEdit(aspectRatio, hd) || (hd ? '2048*2048' : null)));
