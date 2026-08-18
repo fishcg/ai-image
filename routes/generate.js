@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const path = require('path');
 const { UploadFile } = require('../lib/OSS');
 const { readBody, sendJson } = require('../lib/http');
-const { tryGetImageSize } = require('../lib/image');
+const { tryGetImageSize, detectImageMime } = require('../lib/image');
 const { getProvider } = require('../providers');
 const { ProviderError } = require('../providers/errors');
 const { getAuthUser } = require('../services/auth');
@@ -231,7 +231,10 @@ async function runGenerate({
         const imageBuffer = Buffer.from(imageResp.data);
 
         // Determine file extension from content-type or URL
-        const contentType = imageResp.headers['content-type'] || '';
+        const responseContentType = String(imageResp.headers['content-type'] || '').split(';')[0].toLowerCase();
+        const contentType = responseContentType.startsWith('image/')
+          ? responseContentType
+          : (detectImageMime(imageBuffer) || '');
         let ext = '.jpg';
         if (contentType.includes('png')) ext = '.png';
         else if (contentType.includes('webp')) ext = '.webp';

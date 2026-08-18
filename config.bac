@@ -65,8 +65,9 @@ const gptimage = {
   model: 'gpt-image-2',
   timeout: 300000,
   fallback: {
-    apiUrl: 'https://open.mxapi.org/api/v2/gpt-image-2',
-    apiKey: 'YOUR_FALLBACK_API_KEY',
+    apiUrl: 'https://cf.api.fan',
+    apiKey: 'YOUR_PACKY_SORA_API_KEY',
+    q
     timeout: 300000,
   },
 };
