@@ -56,6 +56,14 @@
               <div class="hint">用户打开创作页面时默认选中的模型</div>
             </div>
             <div class="setting-group">
+              <label for="gptImagePrimaryProvider">GPT Image 2 供应商顺序</label>
+              <select id="gptImagePrimaryProvider" class="search-input">
+                <option value="original">原供应商（主）→ PackyAPI（Fallback）</option>
+                <option value="packy">PackyAPI（主）→ 原供应商（Fallback）</option>
+              </select>
+              <div class="hint">主供应商调用失败时，会自动切换到另一供应商</div>
+            </div>
+            <div class="setting-group">
               <label>可用模型</label>
               <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: rgba(255,255,255,0.9); font-size: 14px;">
@@ -94,6 +102,7 @@
 
           // 模型配置
           document.getElementById('defaultModel').value = s.default_model || 'gpt-image';
+          document.getElementById('gptImagePrimaryProvider').value = s.gpt_image_primary_provider || 'original';
           const enabled = (s.enabled_models || 'gpt-image,dashscope,google-nano-banana-pro,jimeng').split(',').map(s => s.trim());
           document.getElementById('enableGptImage').checked = enabled.includes('gpt-image');
           document.getElementById('enableDashscope').checked = enabled.includes('dashscope');
@@ -130,6 +139,7 @@
         if (!enabledModels) { showToast('至少启用一个模型', 'error'); return; }
 
         const defaultModel = document.getElementById('defaultModel').value;
+        const gptImagePrimaryProvider = document.getElementById('gptImagePrimaryProvider').value;
         if (!enabledModels.split(',').includes(defaultModel)) {
           showToast('默认模型必须在可用模型中', 'error');
           return;
@@ -139,7 +149,13 @@
           const resp = await fetch('/api/admin/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ settings: { default_model: defaultModel, enabled_models: enabledModels } }),
+            body: JSON.stringify({
+              settings: {
+                default_model: defaultModel,
+                enabled_models: enabledModels,
+                gpt_image_primary_provider: gptImagePrimaryProvider,
+              },
+            }),
           });
           if (!resp.ok) throw new Error();
           showToast('模型配置已保存', 'success');

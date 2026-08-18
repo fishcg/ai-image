@@ -21,6 +21,7 @@ const SETTING_DEFAULTS = {
   max_upload_mb: '60',
   default_model: 'gpt-image',
   enabled_models: 'gpt-image,dashscope,google-nano-banana-pro,jimeng',
+  gpt_image_primary_provider: 'original',
 };
 
 async function getSettings({ req, res, pool }) {
@@ -50,6 +51,14 @@ async function updateSettings({ req, res, pool, body }) {
   }
 
   const allowedKeys = Object.keys(SETTING_DEFAULTS);
+  const requestedGptImageProvider = settings.gpt_image_primary_provider;
+  if (
+    requestedGptImageProvider !== undefined &&
+    !['original', 'packy'].includes(String(requestedGptImageProvider))
+  ) {
+    sendJson(res, 400, { error: 'Invalid gpt_image_primary_provider' });
+    return;
+  }
 
   try {
     for (const [key, value] of Object.entries(settings)) {
@@ -106,9 +115,15 @@ async function getPublicModelConfig({ req, res, pool }) {
   try {
     const defaultModel = await getCachedSettingStr(pool, 'default_model', SETTING_DEFAULTS.default_model);
     const enabledModels = await getCachedSettingStr(pool, 'enabled_models', SETTING_DEFAULTS.enabled_models);
+    const gptImagePrimaryProvider = await getCachedSettingStr(
+      pool,
+      'gpt_image_primary_provider',
+      SETTING_DEFAULTS.gpt_image_primary_provider
+    );
     sendJson(res, 200, {
       defaultModel,
       enabledModels: enabledModels.split(',').map(s => s.trim()).filter(Boolean),
+      gptImagePrimaryProvider,
     });
   } catch (err) {
     sendJson(res, 500, { error: `DB error: ${err?.message || String(err)}` });
@@ -119,6 +134,7 @@ module.exports = {
   getSettings,
   updateSettings,
   getCachedSetting,
+  getCachedSettingStr,
   getPublicModelConfig,
   SETTING_DEFAULTS,
 };

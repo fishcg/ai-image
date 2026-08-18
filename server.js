@@ -22,7 +22,7 @@ const adminAnnouncementsRoutes = require('./routes/admin/announcements');
 const adminRegCodesRoutes = require('./routes/admin/reg-codes');
 const adminFeedbackRoutes = require('./routes/admin/feedback');
 const adminImagesRoutes = require('./routes/admin/images');
-const { getCachedSetting } = adminSettingsRoutes;
+const { getCachedSetting, getCachedSettingStr } = adminSettingsRoutes;
 const { http: httpConfig, dc, ai, nanoai, jimeng, gptimage, mysql: mysqlConfig, auth: authConfig } = require('./config');
 
 const PORT = Number(process.env.PORT || httpConfig?.port || 7992);
@@ -93,6 +93,7 @@ const server = http.createServer(async (req, res) => {
       nanoai,
       jimeng,
       gptimage,
+      gptImagePrimaryProvider: await getCachedSettingStr(pool, 'gpt_image_primary_provider', 'original'),
       monthlyLimit: await getCachedSetting(pool, 'monthly_limit', MONTHLY_LIMIT),      providerTimeoutMsDashScope,
       providerTimeoutMsNanoAi,
       providerTimeoutMsJiMeng,
@@ -424,6 +425,7 @@ const server = http.createServer(async (req, res) => {
       nanoai,
       jimeng,
       gptimage,
+      gptImagePrimaryProvider: await getCachedSettingStr(pool, 'gpt_image_primary_provider', 'original'),
       monthlyLimit: await getCachedSetting(pool, 'monthly_limit', MONTHLY_LIMIT),
       providerTimeoutMsDashScope,
       providerTimeoutMsNanoAi,

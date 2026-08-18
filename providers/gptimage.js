@@ -61,11 +61,14 @@ function normalizeFallbackBaseUrl(apiUrl) {
     .replace(/\/v1\/images(?:\/(?:generations|edits))?$/, '');
 }
 
-async function fallbackGenerate({ axios, gptimage, env, mode, prompt, size, quality, uploadedUrls, timeout }) {
+async function generatePacky({ axios, gptimage, env, mode, prompt, size, quality, uploadedUrls, timeout }) {
   const fb = gptimage?.fallback || {};
   const apiKey = env.PACKY_API_KEY || env.GPTIMAGE_FALLBACK_API_KEY || fb.apiKey;
   if (!apiKey) {
-    return null;
+    throw new ProviderError('Missing Packy API Key', {
+      statusCode: 500,
+      payload: { error: 'Missing Packy API Key' },
+    });
   }
 
   const baseUrl = normalizeFallbackBaseUrl(
@@ -128,121 +131,146 @@ async function fallbackGenerate({ axios, gptimage, env, mode, prompt, size, qual
   return extractUrls(response.data);
 }
 
-async function generate({ axios, gptimage, env, mode, prompt, negativePrompt, n, hd, aspectRatio, uploadedUrls, baseDim, timeoutMs }) {
+async function generateOriginal({ axios, gptimage, env, mode, prompt, n, quality, size, uploadedUrls, timeout }) {
   const apiKey = env.GPTIMAGE_API_KEY || gptimage?.apiKey;
+  if (!apiKey) {
+    throw new ProviderError('Missing gpt-image API Key', {
+      statusCode: 500,
+      payload: { error: 'Missing gpt-image API Key' },
+    });
+  }
+
   const baseUrl = (env.GPTIMAGE_API_URL || gptimage?.apiUrl || 'https://image.glmbigmodel.me/v1/images')
     .replace(/\/(generations|edits)$/, '');
   const model = env.GPTIMAGE_MODEL || gptimage?.model || 'gpt-image-2';
+  const isEdit = mode === 'img2img' && uploadedUrls && uploadedUrls.length > 0;
+
+  let response;
+  if (isEdit) {
+    const buffers = [];
+    for (const url of uploadedUrls) {
+      const download = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 });
+      buffers.push(Buffer.from(download.data));
+    }
+
+    const form = new FormData();
+    form.append('model', model);
+    form.append('prompt', prompt);
+    form.append('size', size);
+    if (quality) form.append('quality', quality);
+    form.append('response_format', 'url');
+    for (let i = 0; i < buffers.length; i++) {
+      form.append('image', buffers[i], { filename: `image_${i}.png`, contentType: 'image/png' });
+    }
+
+    response = await axios.post(`${baseUrl}/edits`, form, {
+      headers: { ...form.getHeaders(), Authorization: `Bearer ${apiKey}` },
+      timeout,
+      maxContentLength: 100 * 1024 * 1024,
+      maxBodyLength: 100 * 1024 * 1024,
+    });
+  } else {
+    const body = {
+      model,
+      prompt,
+      size,
+      n: Math.max(1, Math.min(4, n || 1)),
+      response_format: 'url',
+    };
+    if (quality) body.quality = quality;
+
+    response = await axios.post(`${baseUrl}/generations`, body, {
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      timeout,
+      maxContentLength: 100 * 1024 * 1024,
+      maxBodyLength: 100 * 1024 * 1024,
+    });
+  }
+
+  return extractUrls(response.data);
+}
+
+function normalizeProviderError(error, providerName) {
+  if (error instanceof ProviderError) return error;
+  const statusCode = error?.response?.status || 502;
+  return new ProviderError(`${providerName} request failed: ${error.message}`, {
+    statusCode,
+    payload: { error: error.message, details: error?.response?.data },
+    cause: error,
+  });
+}
+
+async function generate({
+  axios,
+  gptimage,
+  env,
+  mode,
+  prompt,
+  negativePrompt,
+  n,
+  hd,
+  aspectRatio,
+  uploadedUrls,
+  baseDim,
+  timeoutMs,
+  gptImagePrimaryProvider,
+}) {
   const ratio = normalizeRatio(aspectRatio) || pickClosestRatio(baseDim) || '1:1';
   const size = ratioToSize(ratio);
   const quality = hd ? 'high' : undefined;
-  const isEdit = mode === 'img2img' && uploadedUrls && uploadedUrls.length > 0;
   const timeout = timeoutMs || 300000;
-
-  // 如果有负面 prompt，添加到 prompt 中（gpt-image 不直接支持 negative_prompt 参数）
-  let finalPrompt = prompt;
-  if (negativePrompt) {
-    finalPrompt = `${prompt}\n\n不要出现：${negativePrompt}`;
-  }
+  const finalPrompt = negativePrompt
+    ? `${prompt}\n\n不要出现：${negativePrompt}`
+    : prompt;
+  const primaryProvider = gptImagePrimaryProvider === 'packy' ? 'packy' : 'original';
+  const fallbackProvider = primaryProvider === 'packy' ? 'original' : 'packy';
+  const providerLabels = { original: '原供应商', packy: 'Packy' };
+  const runners = {
+    original: () => generateOriginal({
+      axios,
+      gptimage,
+      env,
+      mode,
+      prompt: finalPrompt,
+      n,
+      quality,
+      size,
+      uploadedUrls,
+      timeout,
+    }),
+    packy: () => generatePacky({
+      axios,
+      gptimage,
+      env,
+      mode,
+      prompt: finalPrompt,
+      size,
+      quality: hd ? 'high' : 'auto',
+      uploadedUrls,
+      timeout,
+    }),
+  };
 
   try {
-    if (!apiKey) {
-      throw new ProviderError('Missing API Key', { statusCode: 500, payload: { error: 'Missing gpt-image API Key' } });
-    }
+    return await runners[primaryProvider]();
+  } catch (error) {
+    const primaryError = normalizeProviderError(error, providerLabels[primaryProvider]);
+    console.log(`[gpt-image] ${providerLabels[primaryProvider]}失败(${primaryError.message})，尝试 ${providerLabels[fallbackProvider]} fallback...`);
 
-    let response;
-
-    if (isEdit) {
-      // edits 端点必须用 multipart/form-data，字段名 image（可多个）
-      // 先下载所有图片，再作为文件上传
-      const buffers = [];
-      for (const url of uploadedUrls) {
-        const dl = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 });
-        buffers.push(Buffer.from(dl.data));
-      }
-
-      const form = new FormData();
-      form.append('model', model);
-      form.append('prompt', finalPrompt);
-      form.append('size', size);
-      if (quality) form.append('quality', quality);
-      form.append('response_format', 'url');
-      for (let i = 0; i < buffers.length; i++) {
-        form.append('image', buffers[i], { filename: `image_${i}.png`, contentType: 'image/png' });
-      }
-
-      response = await axios.post(`${baseUrl}/edits`, form, {
-        headers: { ...form.getHeaders(), Authorization: `Bearer ${apiKey}` },
-        timeout,
-        maxContentLength: 100 * 1024 * 1024,
-        maxBodyLength: 100 * 1024 * 1024,
-      });
-    } else {
-      // generations 端点用 JSON
-      const body = {
-        model,
-        prompt: finalPrompt,
-        size,
-        n: Math.max(1, Math.min(4, n || 1)),
-        response_format: 'url',
-      };
-      if (quality) body.quality = quality;
-
-      response = await axios.post(`${baseUrl}/generations`, body, {
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        timeout,
-        maxContentLength: 100 * 1024 * 1024,
-        maxBodyLength: 100 * 1024 * 1024,
-      });
-    }
-
-    return extractUrls(response.data);
-
-  } catch (err) {
-    if (err instanceof ProviderError) {
-      try {
-        console.log(`[gpt-image] 主渠道失败(${err.message})，尝试 Packy fallback...`);
-        const fbResult = await fallbackGenerate({
-          axios,
-          gptimage,
-          env,
-          mode,
-          prompt: finalPrompt,
-          size,
-          quality: hd ? 'high' : 'auto',
-          uploadedUrls,
-          timeout,
-        });
-        if (fbResult) return fbResult;
-      } catch (fbErr) {
-        console.log(`[gpt-image] Packy fallback 也失败: ${fbErr.message}`);
-      }
-      throw err;
-    }
-    const status = err?.response?.status || 502;
-    const primaryErr = new ProviderError(`Request Failed: ${err.message}`, {
-      statusCode: status,
-      payload: { error: err.message, details: err?.response?.data },
-      cause: err,
-    });
     try {
-      console.log(`[gpt-image] 主渠道失败(${err.message})，尝试 Packy fallback...`);
-      const fbResult = await fallbackGenerate({
-        axios,
-        gptimage,
-        env,
-        mode,
-        prompt: finalPrompt,
-        size,
-        quality: hd ? 'high' : 'auto',
-        uploadedUrls,
-        timeout,
+      return await runners[fallbackProvider]();
+    } catch (fallbackError) {
+      const normalizedFallbackError = normalizeProviderError(fallbackError, providerLabels[fallbackProvider]);
+      console.log(`[gpt-image] ${providerLabels[fallbackProvider]} fallback 也失败: ${normalizedFallbackError.message}`);
+      throw new ProviderError(primaryError.message, {
+        statusCode: primaryError.statusCode,
+        payload: {
+          ...(primaryError.payload || { error: primaryError.message }),
+          fallbackError: normalizedFallbackError.message,
+        },
+        cause: primaryError,
       });
-      if (fbResult) return fbResult;
-    } catch (fbErr) {
-      console.log(`[gpt-image] Packy fallback 也失败: ${fbErr.message}`);
     }
-    throw primaryErr;
   }
 }
 

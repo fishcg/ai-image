@@ -1320,12 +1320,17 @@ function syncModelConstraints() {
     const nHint = $(nHintId);
     if (!nInput) return;
 
-    if (isNanoModel(modelId)) {
+    const isPackyGptImage = modelId === 'gpt-image' && gptImagePrimaryProvider === 'packy';
+    if (isNanoModel(modelId) || isPackyGptImage) {
       nInput.min = '1';
       nInput.max = '1';
       nInput.value = '1';
       nInput.disabled = true;
-      if (nHint) nHint.textContent = 'Nano 模型仅支持生成 1 张。';
+      if (nHint) {
+        nHint.textContent = isPackyGptImage
+          ? '当前 GPT Image 2 主供应商仅支持生成 1 张。'
+          : 'Nano 模型仅支持生成 1 张。';
+      }
     } else if (modelId === 'dashscope') {
       nInput.min = '1';
       nInput.max = '4';
@@ -3311,6 +3316,7 @@ const MODEL_LABELS = {
   'google-nano-banana-pro': { img2img: '精修（速度较慢，失败请重试）', txt2img: '精修（速度较慢，失败请重试）' },
   'jimeng': { img2img: '即梦4.0（支持4K超清，速度适中）', txt2img: '即梦4.0（支持4K超清，速度适中）' },
 };
+var gptImagePrimaryProvider = 'original';
 
 async function loadModelConfig() {
   try {
@@ -3320,9 +3326,11 @@ async function loadModelConfig() {
 
     const enabledModels = data.enabledModels || Object.keys(MODEL_LABELS);
     const defaultModel = data.defaultModel || 'gpt-image';
+    gptImagePrimaryProvider = data.gptImagePrimaryProvider === 'packy' ? 'packy' : 'original';
 
     populateModelSelect('modelId', enabledModels, defaultModel, 'img2img');
     populateModelSelect('modelIdText', enabledModels, defaultModel, 'txt2img');
+    syncModelConstraints();
   } catch {
     // 静默失败，保留 HTML 中的默认选项
   }

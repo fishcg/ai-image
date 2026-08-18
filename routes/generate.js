@@ -128,6 +128,7 @@ async function runGenerate({
   nanoai,
   jimeng,
   gptimage,
+  gptImagePrimaryProvider,
   monthlyLimit,
   providerTimeoutMsDashScope,
   providerTimeoutMsNanoAi,
@@ -136,7 +137,8 @@ async function runGenerate({
 }) {
   const v = validateRequest(parsed);
   if (!v.ok) return { statusCode: v.statusCode, payload: v.payload };
-  const { mode, modelId, provider, prompt, negativePrompt, n, images, hd, aspectRatio } = v;
+  const { mode, modelId, provider, prompt, negativePrompt, n: requestedN, images, hd, aspectRatio } = v;
+  const n = modelId === 'gpt-image' && gptImagePrimaryProvider === 'packy' ? 1 : requestedN;
 
   const month = getMonthKey(new Date());
   let reservation;
@@ -185,6 +187,7 @@ async function runGenerate({
       nanoai,
       jimeng,
       gptimage,
+      gptImagePrimaryProvider,
       env: process.env,
       mode,
       prompt,
