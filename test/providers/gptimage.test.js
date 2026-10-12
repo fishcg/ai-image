@@ -127,7 +127,7 @@ test('主渠道图生图失败后使用基准图调用 Packy edits API', async (
   const multipartBody = fallbackCall.body.getBuffer().toString('utf8');
   assert.match(multipartBody, /name="model"[\s\S]*gpt-image-2/);
   assert.match(multipartBody, /name="size"[\s\S]*1536x2048/);
-  assert.match(multipartBody, /name="input_fidelity"[\s\S]*high/);
+  assert.doesNotMatch(multipartBody, /name="input_fidelity"/);
   assert.doesNotMatch(multipartBody, /name="response_format"/);
   assert.match(multipartBody, /BASE_IMAGE/);
   assert.doesNotMatch(multipartBody, /REFERENCE_IMAGE/);
