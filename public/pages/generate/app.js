@@ -1605,6 +1605,12 @@ function updateFileInfo(files) {
   el.textContent = `已选择 ${files.length} 张：${files.map((f) => f.name).join('、')}`;
 }
 
+function formatGenerateError(data) {
+  const msg = data?.message ? `${data.error || 'Error'}: ${data.message}` : (data?.error || '请求失败');
+  // 主备链路都失败时，后端把备用链路的错误放在 fallbackError
+  return data?.fallbackError ? `${msg}（备用链路也失败：${data.fallbackError}）` : msg;
+}
+
 async function handleSubmit() {
   const files = selectedFiles.length ? selectedFiles : Array.from($('images').files || []);
   if (files.length === 0) {
@@ -1714,8 +1720,7 @@ async function handleSubmit() {
 
     const start = await resp.json().catch(() => ({}));
     if (!resp.ok) {
-      const msg = start?.message ? `${start.error || 'Error'}: ${start.message}` : (start?.error || '请求失败');
-      throw new Error(msg);
+      throw new Error(formatGenerateError(start));
     }
 
     const jobId = String(start?.jobId || '');
@@ -1734,9 +1739,7 @@ async function handleSubmit() {
     }
     if (!final) throw new Error('生成超时，请稍后重试。');
     if (final.statusCode !== 200) {
-      const data = final.payload || {};
-      const msg = data?.message ? `${data.error || 'Error'}: ${data.message}` : (data?.error || '请求失败');
-      throw new Error(msg);
+      throw new Error(formatGenerateError(final.payload || {}));
     }
 
     setResultsLoading(false);
@@ -1789,8 +1792,7 @@ async function handleSubmitText() {
 
     const start = await resp.json().catch(() => ({}));
     if (!resp.ok) {
-      const msg = start?.message ? `${start.error || 'Error'}: ${start.message}` : (start?.error || '请求失败');
-      throw new Error(msg);
+      throw new Error(formatGenerateError(start));
     }
 
     const jobId = String(start?.jobId || '');
@@ -1809,9 +1811,7 @@ async function handleSubmitText() {
     }
     if (!final) throw new Error('生成超时，请稍后重试。');
     if (final.statusCode !== 200) {
-      const data = final.payload || {};
-      const msg = data?.message ? `${data.error || 'Error'}: ${data.message}` : (data?.error || '请求失败');
-      throw new Error(msg);
+      throw new Error(formatGenerateError(final.payload || {}));
     }
 
     setResultsLoadingText(false);
