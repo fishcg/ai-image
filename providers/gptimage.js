@@ -82,6 +82,7 @@ async function generatePacky({ axios, gptimage, env, mode, prompt, size, quality
   const reqTimeout = Number(env.PACKY_TIMEOUT || env.GPTIMAGE_FALLBACK_TIMEOUT || fb.timeout || timeout || 300000);
   const isEdit = mode === 'img2img' && Array.isArray(uploadedUrls) && uploadedUrls.length > 0;
 
+  // Packy 上游不接受 response_format 参数，结果以 b64_json 返回，由 extractUrls 解码
   let response;
   if (isEdit) {
     // Packy 的 edits 接口建议一次只传一张图；路由会把基准图放在最后。
@@ -101,7 +102,6 @@ async function generatePacky({ axios, gptimage, env, mode, prompt, size, quality
     form.append('size', size);
     form.append('quality', quality || 'auto');
     form.append('output_format', 'png');
-    form.append('response_format', 'url');
     form.append('input_fidelity', 'high');
     form.append('n', '1');
 
@@ -118,7 +118,6 @@ async function generatePacky({ axios, gptimage, env, mode, prompt, size, quality
       size,
       quality: quality || 'auto',
       output_format: 'png',
-      response_format: 'url',
       n: 1,
     }, {
       headers: { ...headers, 'Content-Type': 'application/json' },

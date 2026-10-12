@@ -67,7 +67,6 @@ test('主渠道文生图失败后使用 Packy Images API', async (t) => {
     size: '2048x1152',
     quality: 'high',
     output_format: 'png',
-    response_format: 'url',
     n: 1,
   });
   assert.equal(fallbackCall.options.headers.Authorization, 'Bearer packy-key');
@@ -129,7 +128,7 @@ test('主渠道图生图失败后使用基准图调用 Packy edits API', async (
   assert.match(multipartBody, /name="model"[\s\S]*gpt-image-2/);
   assert.match(multipartBody, /name="size"[\s\S]*1536x2048/);
   assert.match(multipartBody, /name="input_fidelity"[\s\S]*high/);
-  assert.match(multipartBody, /name="response_format"[\s\S]*url/);
+  assert.doesNotMatch(multipartBody, /name="response_format"/);
   assert.match(multipartBody, /BASE_IMAGE/);
   assert.doesNotMatch(multipartBody, /REFERENCE_IMAGE/);
 });
