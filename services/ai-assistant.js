@@ -80,7 +80,8 @@ async function enhancePrompt({ userInput, mode = 'txt2img', apiKey }) {
 
   try {
     const response = await client.chat.completions.create({
-      model: 'qwen3-max-2026-01-23', // 使用快速模型
+      model: 'qwen3.7-plus', // 用别名而非日期快照，避免快照下线后 404
+      enable_thinking: false, // qwen3.x 默认开启思考，关闭后耗时从 ~14s 降到 ~2.5s
       messages: [
         {
           role: 'system',
